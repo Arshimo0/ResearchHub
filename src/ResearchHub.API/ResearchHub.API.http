@@ -1,0 +1,6 @@
+@ResearchHub.API_HostAddress = http://localhost:5012
+
+GET {{ResearchHub.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
