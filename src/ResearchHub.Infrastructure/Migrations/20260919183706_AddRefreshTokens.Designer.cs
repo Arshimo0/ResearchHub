@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ResearchHub.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using ResearchHub.Infrastructure.Persistence;
 namespace ResearchHub.Infrastructure.Migrations
 {
     [DbContext(typeof(ResearchHubDbContext))]
-    partial class ResearchHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260919183706_AddRefreshTokens")]
+    partial class AddRefreshTokens
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
