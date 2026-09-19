@@ -19,7 +19,7 @@ namespace ResearchHub.Infrastructure.Persistence
         public DbSet<Note> Notes => Set<Note>();
         public DbSet<Tag> Tags => Set<Tag>();
         public DbSet<ResearchTask> ResearchTasks => Set<ResearchTask>();
-
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(ResearchHubDbContext).Assembly);
