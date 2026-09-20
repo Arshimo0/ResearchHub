@@ -6,6 +6,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using ResearchHub.Application.Common;
 namespace ResearchHub.API.Middleware
 {
  
@@ -48,6 +49,8 @@ namespace ResearchHub.API.Middleware
         private static (int StatusCode, string Title) MapException(Exception ex) => ex switch
         {
             UnauthorizedAccessException => ((int)HttpStatusCode.Unauthorized, "Unauthorized"),
+            ForbiddenAccessException => ((int)HttpStatusCode.Forbidden, "Forbidden"),
+            KeyNotFoundException => ((int)HttpStatusCode.NotFound, "Not Found"),
             InvalidOperationException => ((int)HttpStatusCode.Conflict, "Conflict"),
             ArgumentException => ((int)HttpStatusCode.BadRequest, "Bad Request"),
             _ => ((int)HttpStatusCode.InternalServerError, "Internal Server Error")
