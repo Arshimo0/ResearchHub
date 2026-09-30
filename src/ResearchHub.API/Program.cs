@@ -51,6 +51,8 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 // OpenAPI / Swagger
 builder.Services.AddOpenApi();
+builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
+builder.Services.AddScoped<ResearchHub.Application.Projects.ProjectService>();
 
 var app = builder.Build();
 
@@ -76,3 +78,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+public partial class Program { }
