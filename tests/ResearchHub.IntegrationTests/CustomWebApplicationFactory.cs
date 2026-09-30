@@ -40,6 +40,17 @@ namespace ResearchHub.IntegrationTests
 
                 services.AddDbContext<ResearchHubDbContext>(options =>
                     options.UseSqlServer(_dbContainer.GetConnectionString()));
+
+                services.PostConfigure<Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerOptions>(
+                    Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme,
+                    options =>
+                    {
+                        options.TokenValidationParameters.IssuerSigningKey =
+                            new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+                                System.Text.Encoding.UTF8.GetBytes("integration-test-signing-key-at-least-32-characters-long"));
+                        options.TokenValidationParameters.ValidIssuer = "ResearchHub";
+                        options.TokenValidationParameters.ValidAudience = "ResearchHubClient";
+                    });
             });
         }
         // Starts the test database container and applies EF migrations before tests run; tears down the container afterward.
