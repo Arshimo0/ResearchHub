@@ -6,6 +6,7 @@ using ResearchHub.Application.Auth;
 using ResearchHub.Application.Common;
 using ResearchHub.Infrastructure.Auth;
 using ResearchHub.Infrastructure.Persistence;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -50,9 +51,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 // OpenAPI / Swagger
+builder.Services.AddControllers();
+// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 builder.Services.AddScoped<ResearchHub.Application.Projects.ProjectService>();
+builder.Services.AddScoped<IPaperRepository, PaperRepository>();
+builder.Services.AddScoped<ITagRepository, TagRepository>();
+builder.Services.AddScoped<ResearchHub.Application.Papers.PaperService>();
 
 var app = builder.Build();
 
@@ -67,7 +73,6 @@ if (app.Environment.IsDevelopment())
         options.RoutePrefix = "swagger";
     });
 }
-
 app.UseMiddleware<ResearchHub.API.Middleware.ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
