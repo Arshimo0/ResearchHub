@@ -14,7 +14,7 @@ namespace ResearchHub.Infrastructure.Persistence.Configurations
         {
             builder.ToTable("ProjectMembers");
             builder.HasKey(m => m.Id);
-            
+            builder.Property(m => m.Id).ValueGeneratedNever();
             builder.Property(m => m.ProjectRole)
             .HasConversion<string>()
             .HasMaxLength(20);

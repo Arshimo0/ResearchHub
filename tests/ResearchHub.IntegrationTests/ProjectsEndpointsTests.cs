@@ -78,32 +78,30 @@ namespace ResearchHub.IntegrationTests
         [Fact]
         public async Task AddMember_ThenNonOwnerCannotDelete_Returns403()
         {
+        // Owner creates a project
             var ownerToken = await RegisterAndGetTokenAsync("owner4@example.com");
             _client.DefaultRequestHeaders.Authorization = new("Bearer", ownerToken);
 
             var createResponse = await _client.PostAsJsonAsync("/api/projects",
                 new CreateProjectRequest("Shared Project", "desc"));
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
             var project = await createResponse.Content.ReadFromJsonAsync<ProjectDto>();
 
+            // Second user registers; look up their id via /me
+            var memberToken = await RegisterAndGetTokenAsync("member1@example.com");
+            _client.DefaultRequestHeaders.Authorization = new("Bearer", memberToken);
             var meResponse = await _client.GetAsync("/api/auth/me");
-            // registering the second user separately to get their id
-            using var registerResponse = await _client.PostAsJsonAsync("/api/auth/register",
-                new RegisterRequest("member1@example.com", "Member User", "SecurePass123!"));
-            var memberAuth = await registerResponse.Content.ReadFromJsonAsync<AuthResult>();
+            var me = await meResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+            var memberId = Guid.Parse(me!["userId"]);
 
-            // fetch member's id via /me using their own token
-            _client.DefaultRequestHeaders.Authorization = new("Bearer", memberAuth!.AccessToken);
-            var memberMeResponse = await _client.GetAsync("/api/auth/me");
-            var memberMeJson = await memberMeResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-            var memberId = Guid.Parse(memberMeJson!["userId"]);
-
-            // back to owner to add the member
+            // Owner adds the member (this is the step that was silently failing before)
             _client.DefaultRequestHeaders.Authorization = new("Bearer", ownerToken);
-            await _client.PostAsJsonAsync($"/api/projects/{project!.Id}/members",
+            var addResponse = await _client.PostAsJsonAsync($"/api/projects/{project!.Id}/members",
                 new AddMemberRequest(memberId, ResearchHub.Domain.Enums.ProjectRole.Member));
+            Assert.Equal(HttpStatusCode.OK, addResponse.StatusCode);
 
-            // member tries to delete the project — should be forbidden
-            _client.DefaultRequestHeaders.Authorization = new("Bearer", memberAuth.AccessToken);
+            // Member (not owner) tries to delete the project
+            _client.DefaultRequestHeaders.Authorization = new("Bearer", memberToken);
             var deleteResponse = await _client.DeleteAsync($"/api/projects/{project.Id}");
 
             Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
