@@ -61,6 +61,8 @@ builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<ResearchHub.Application.Papers.PaperService>();
 builder.Services.AddScoped<INoteRepository, NoteRepository>();
 builder.Services.AddScoped<ResearchHub.Application.Notes.NoteService>();
+builder.Services.AddScoped<IResearchTaskRepository, ResearchTaskRepository>();
+builder.Services.AddScoped<ResearchHub.Application.ResearchTasks.ResearchTaskService>();
 
 var app = builder.Build();
 
