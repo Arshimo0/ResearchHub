@@ -1,4 +1,5 @@
 # ResearchHub
+[![CI](https://github.com/Arshimo0/ResearchHub/actions/workflows/ci.yml/badge.svg)](https://github.com/Arshimo0/ResearchHub/actions/workflows/ci.yml)
 
 A production-style research management and collaboration platform, built with ASP.NET Core.
 
