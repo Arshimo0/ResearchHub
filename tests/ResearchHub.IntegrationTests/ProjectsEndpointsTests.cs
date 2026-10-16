@@ -106,5 +106,17 @@ namespace ResearchHub.IntegrationTests
 
             Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
         }
+        [Fact]
+        public async Task CreateProject_WithEmptyName_Returns400WithFieldErrors()
+        {
+            var token = await RegisterAndGetTokenAsync("validation1@example.com");
+            _client.DefaultRequestHeaders.Authorization = new("Bearer", token);
+
+            var response = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest("", "desc"));
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("\"name\"", body);
+        }
     }
 }

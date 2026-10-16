@@ -24,7 +24,10 @@ namespace ResearchHub.UnitTests.Papers
                 _paperRepository.Object,
                 _projectRepository.Object,
                 _tagRepository.Object,
-                _unitOfWork.Object);
+                _unitOfWork.Object,
+                new CreatePaperRequestValidator(),
+                new UpdatePaperRequestValidator(),
+                new AddTagRequestValidator());
         }
 
         private ResearchProject CreateProjectWithMember(Guid memberId)
@@ -121,6 +124,29 @@ namespace ResearchHub.UnitTests.Papers
                 _sut.DeleteAsync(paper.Id, Guid.NewGuid()));
 
             _paperRepository.Verify(r => r.Remove(It.IsAny<ResearchPaper>()), Times.Never);
+        }
+        [Fact]
+        public async Task CreateAsync_EmptyTitle_ThrowsValidationException()
+        {
+            var request = new CreatePaperRequest("", "Authors", "abstract", null, null, null, null);
+
+            var ex = await Assert.ThrowsAsync<RequestValidationException>(() =>
+                _sut.CreateAsync(Guid.NewGuid(), request, Guid.NewGuid()));
+
+            Assert.Contains("title", ex.Errors.Keys);
+            _paperRepository.Verify(r => r.AddAsync(It.IsAny<ResearchPaper>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CreateAsync_TooManyTags_ThrowsValidationException()
+        {
+            var tags = Enumerable.Range(0, 21).Select(i => $"tag-{i}").ToArray();
+            var request = new CreatePaperRequest("Title", "Authors", "abstract", null, null, null, tags);
+
+            var ex = await Assert.ThrowsAsync<RequestValidationException>(() =>
+                _sut.CreateAsync(Guid.NewGuid(), request, Guid.NewGuid()));
+
+            Assert.Contains("tags", ex.Errors.Keys);
         }
     }
 }

@@ -15,7 +15,12 @@ public class ProjectServiceTests
 
     public ProjectServiceTests()
     {
-        _sut = new ProjectService(_projectRepository.Object, _unitOfWork.Object);
+        _sut = new ProjectService(
+            _projectRepository.Object,
+            _unitOfWork.Object,
+            new CreateProjectRequestValidator(),
+            new UpdateProjectRequestValidator(),
+            new AddMemberRequestValidator());
     }
 
     [Fact]
@@ -137,5 +142,16 @@ public class ProjectServiceTests
 
         await Assert.ThrowsAsync<ResearchHub.Domain.Exceptions.CannotRemoveLastOwnerException>(() =>
             _sut.RemoveMemberAsync(project.Id, ownerId, ownerId));
+    }
+    [Fact]
+    public async Task CreateAsync_NameTooLong_ThrowsValidationExceptionAndSavesNothing()
+    {
+        var request = new CreateProjectRequest(new string('a', 201), "desc");
+
+        var ex = await Assert.ThrowsAsync<RequestValidationException>(() =>
+            _sut.CreateAsync(request, Guid.NewGuid()));
+
+        Assert.Contains("name", ex.Errors.Keys);
+        _projectRepository.Verify(r => r.AddAsync(It.IsAny<ResearchProject>()), Times.Never);
     }
 }
