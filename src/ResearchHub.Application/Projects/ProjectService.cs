@@ -118,6 +118,19 @@ namespace ResearchHub.Application.Projects
             project.Description,
             project.Status,
             project.CreatedAt,
-            project.Members.Select(m => new ProjectMemberDto(m.UserId, m.ProjectRole, m.JoinedAt)).ToList());  
+            project.Members.Select(m => new ProjectMemberDto(m.UserId, m.ProjectRole, m.JoinedAt)).ToList());
+        public async Task<IReadOnlyList<ProjectSummaryDto>> GetMyProjectsAsync(Guid currentUserId)
+        {
+            var projects = await _projectRepository.GetByMemberUserIdAsync(currentUserId);
+
+            return projects.Select(p => new ProjectSummaryDto(
+                p.Id,
+                p.Name,
+                p.Description,
+                p.Status,
+                p.CreatedAt,
+                p.Members.Count,
+                p.Members.Single(m => m.UserId == currentUserId).ProjectRole)).ToList();
+        }  
     }
 }
