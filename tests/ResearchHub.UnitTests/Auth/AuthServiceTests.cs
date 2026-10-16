@@ -4,7 +4,6 @@ using ResearchHub.Application.Common;
 using ResearchHub.Domain.Entities;
 using ResearchHub.Domain.Enums;
 using Xunit;
-
 namespace ResearchHub.UnitTests.Auth;
 
 public class AuthServiceTests
@@ -23,7 +22,9 @@ public class AuthServiceTests
             _refreshTokenRepository.Object,
             _unitOfWork.Object,
             _passwordHasher.Object,
-            _tokenService.Object);
+            _tokenService.Object,
+            new RegisterRequestValidator(),
+            new LoginRequestValidator());
 
         _tokenService
             .Setup(t => t.GenerateAccessToken(It.IsAny<User>()))
@@ -123,5 +124,25 @@ public class AuthServiceTests
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _sut.RefreshAsync("nonexistent-token"));
+    }
+    [Theory]
+    [InlineData("1234")]
+    [InlineData("")]
+    public async Task RegisterAsync_InvalidPassword_ThrowsValidationAndDoesNotSaveUser(string password)
+    {
+        var ex = await Assert.ThrowsAsync<RequestValidationException>(() =>
+            _sut.RegisterAsync(new RegisterRequest("new@example.com", "New User", password)));
+
+        Assert.Contains("password", ex.Errors.Keys);
+        _userRepository.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_InvalidEmail_ThrowsValidationException()
+    {
+        var ex = await Assert.ThrowsAsync<RequestValidationException>(() =>
+            _sut.RegisterAsync(new RegisterRequest("not-an-email", "New User", "Password123!")));
+
+        Assert.Contains("email", ex.Errors.Keys);
     }
 }
