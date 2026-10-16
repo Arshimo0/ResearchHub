@@ -7,6 +7,8 @@ using ResearchHub.Application.Common;
 using ResearchHub.Infrastructure.Auth;
 using ResearchHub.Infrastructure.Persistence;
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -52,6 +54,39 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 // OpenAPI / Swagger
 builder.Services.AddControllers();
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(entry => entry.Value is { Errors.Count: > 0 })
+            .GroupBy(entry =>
+            {
+                var key = entry.Key.TrimStart('$', '.');
+                return key.Length == 0 ? "request" : JsonNamingPolicy.CamelCase.ConvertName(key);
+            })
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .SelectMany(entry => entry.Value!.Errors)
+                    .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage)
+                        ? "The value is invalid."
+                        : e.ErrorMessage)
+                    .ToArray());
+
+        var problem = new ValidationProblemDetails(errors)
+        {
+            Title = "Validation failed",
+            Status = StatusCodes.Status400BadRequest
+        };
+        problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+
+        return new BadRequestObjectResult(problem)
+        {
+            ContentTypes = { "application/problem+json" }
+        };
+    };
+});
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
