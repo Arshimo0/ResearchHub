@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ResearchHub.Application.Common;
 using ResearchHub.Domain.Entities;
+using FluentValidation;
 
 namespace ResearchHub.Application.Notes
 {
@@ -13,20 +14,27 @@ namespace ResearchHub.Application.Notes
         private readonly IPaperRepository _paperRepository;
         private readonly IProjectRepository _projectRepository;
         private readonly IUnitOfWork _unitOfWork;
-        
+        private readonly IValidator<CreateNoteRequest> _createValidator;
+        private readonly IValidator<UpdateNoteRequest> _updateValidator;
+
         public NoteService(
-        INoteRepository noteRepository,
-        IPaperRepository paperRepository,
-        IProjectRepository projectRepository,
-        IUnitOfWork unitOfWork)
+            INoteRepository noteRepository,
+            IPaperRepository paperRepository,
+            IProjectRepository projectRepository,
+            IUnitOfWork unitOfWork,
+            IValidator<CreateNoteRequest> createValidator,
+            IValidator<UpdateNoteRequest> updateValidator)
         {
             _noteRepository = noteRepository;
             _paperRepository = paperRepository;
             _projectRepository = projectRepository;
             _unitOfWork = unitOfWork;
+            _createValidator = createValidator;
+            _updateValidator = updateValidator;
         }
         public async Task<NoteDto> CreateAsync(Guid paperId, CreateNoteRequest request, Guid currentUserId)
         {
+            await _createValidator.ValidateOrThrowAsync(request);
             var paper = await GetPaperOrThrow(paperId);
             await EnsureIsProjectMemberAsync(paper.ProjectId, currentUserId);
 
@@ -49,6 +57,7 @@ namespace ResearchHub.Application.Notes
             
         public async Task<NoteDto> UpdateAsync(Guid noteId, UpdateNoteRequest request, Guid currentUserId)
         {
+            await _updateValidator.ValidateOrThrowAsync(request);
             var note = await GetNoteOrThrow(noteId);
             EnsureIsAuthor(note, currentUserId);
 

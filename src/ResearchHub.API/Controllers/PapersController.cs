@@ -63,7 +63,7 @@ public class PapersController : ApiControllerBase
     [HttpPost("papers/{id:guid}/tags")]
     public async Task<ActionResult<PaperDto>> AddTag(Guid id, AddTagRequest request)
     {
-        var result = await _paperService.AddTagAsync(id, request.Name, CurrentUserId);
+        var result = await _paperService.AddTagAsync(id, request, CurrentUserId);
         return Ok(result);
     }
 
