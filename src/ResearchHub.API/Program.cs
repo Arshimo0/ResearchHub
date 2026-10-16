@@ -6,7 +6,7 @@ using ResearchHub.Application.Auth;
 using ResearchHub.Application.Common;
 using ResearchHub.Infrastructure.Auth;
 using ResearchHub.Infrastructure.Persistence;
-
+using FluentValidation;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -63,7 +63,7 @@ builder.Services.AddScoped<INoteRepository, NoteRepository>();
 builder.Services.AddScoped<ResearchHub.Application.Notes.NoteService>();
 builder.Services.AddScoped<IResearchTaskRepository, ResearchTaskRepository>();
 builder.Services.AddScoped<ResearchHub.Application.ResearchTasks.ResearchTaskService>();
-
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

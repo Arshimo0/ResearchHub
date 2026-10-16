@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ResearchHub.Application.Common;
 using ResearchHub.Domain.Entities;
-
+using FluentValidation;
 namespace ResearchHub.Application.Auth
 {
     public class AuthService
@@ -16,23 +16,30 @@ namespace ResearchHub.Application.Auth
         private readonly IUnitOfWork _unitOfWork;
         private readonly IPasswordHasher _passwordHasher;
         private readonly ITokenService _tokenService;
+        private readonly IValidator<RegisterRequest> _registerValidator;
+        private readonly IValidator<LoginRequest> _loginValidator;
 
         public AuthService(
             IUserRepository userRepository,
             IRefreshTokenRepository refreshTokenRepository,
             IUnitOfWork unitOfWork,
             IPasswordHasher passwordHasher,
-            ITokenService tokenService)
+            ITokenService tokenService,
+            IValidator<RegisterRequest> registerValidator,
+            IValidator<LoginRequest> loginValidator)
         {
             _userRepository = userRepository;
             _refreshTokenRepository = refreshTokenRepository;
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _tokenService = tokenService;
+            _registerValidator = registerValidator;
+            _loginValidator = loginValidator;
         }
 
         public async Task<AuthResult> RegisterAsync(RegisterRequest request)
         {
+            await _registerValidator.ValidateOrThrowAsync(request);
             var existingUser = await _userRepository.GetByEmailAsync(request.Email);
             if (existingUser is not null)
                 throw new InvalidOperationException("A user with this email already exists.");
@@ -48,6 +55,7 @@ namespace ResearchHub.Application.Auth
 
         public async Task<AuthResult> LoginAsync(LoginRequest request)
         {
+            await _loginValidator.ValidateOrThrowAsync(request);
             var user = await _userRepository.GetByEmailAsync(request.Email);
             if (user is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Invalid email or password.");
