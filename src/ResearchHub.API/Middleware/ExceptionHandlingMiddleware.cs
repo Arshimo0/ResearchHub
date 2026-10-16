@@ -26,6 +26,20 @@ namespace ResearchHub.API.Middleware
             {
                 await _next(context);
             }
+            catch (RequestValidationException ex)
+            {
+                context.Response.ContentType = "application/problem+json";
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+
+                var problemDetails = new
+                {
+                    title = "Validation failed",
+                    status = StatusCodes.Status400BadRequest,
+                    errors = ex.Errors
+                };
+
+                await context.Response.WriteAsync(JsonSerializer.Serialize(problemDetails));
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unhandled exception processing {Method} {Path}", context.Request.Method, context.Request.Path);
