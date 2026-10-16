@@ -7,6 +7,7 @@ using System.Net.Http.Json;
 using ResearchHub.Application.Auth;
 using ResearchHub.Application.Projects;
 using Xunit;
+using System.Text;
 namespace ResearchHub.IntegrationTests
 {
     public class ProjectsEndpointsTests: IClassFixture<CustomWebApplicationFactory>
@@ -105,6 +106,32 @@ namespace ResearchHub.IntegrationTests
             var deleteResponse = await _client.DeleteAsync($"/api/projects/{project.Id}");
 
             Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
+        }
+        [Fact]
+        public async Task CreateProject_WithEmptyName_Returns400WithFieldErrors()
+        {
+            var token = await RegisterAndGetTokenAsync("validation1@example.com");
+            _client.DefaultRequestHeaders.Authorization = new("Bearer", token);
+
+            var response = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest("", "desc"));
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("\"name\"", body);
+        }
+        [Fact]
+        public async Task CreateProject_WithMalformedJson_Returns400InSameShape()
+        {
+            var token = await RegisterAndGetTokenAsync("validation2@example.com");
+            _client.DefaultRequestHeaders.Authorization = new("Bearer", token);
+
+            var content = new StringContent("{ this is not valid json", Encoding.UTF8, "application/json");
+            var response = await _client.PostAsync("/api/projects", content);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("Validation failed", body);
+            Assert.Contains("traceId", body);
         }
     }
 }

@@ -25,7 +25,10 @@ public class ResearchTaskServiceTests
             _taskRepository.Object,
             _paperRepository.Object,
             _projectRepository.Object,
-            _unitOfWork.Object);
+            _unitOfWork.Object,
+            new CreateResearchTaskRequestValidator(),
+            new UpdateResearchTaskRequestValidator(),
+            new ChangeResearchTaskStatusRequestValidator());
     }
 
     // A project with one Owner and two regular Members
@@ -172,5 +175,16 @@ public class ResearchTaskServiceTests
         var result = await _sut.AssignAsync(task.Id, new AssignResearchTaskRequest(null), ownerId);
 
         Assert.Null(result.AssignedToUserId);
+    }
+    [Fact]
+    public async Task CreateAsync_UndefinedPriorityValue_ThrowsValidationException()
+    {
+        var request = new CreateResearchTaskRequest("Title", "desc", (TaskPriority)99, null, null, null);
+
+        var ex = await Assert.ThrowsAsync<RequestValidationException>(() =>
+            _sut.CreateAsync(Guid.NewGuid(), request, Guid.NewGuid()));
+
+        Assert.Contains("priority", ex.Errors.Keys);
+        _taskRepository.Verify(r => r.AddAsync(It.IsAny<ResearchTask>()), Times.Never);
     }
 }

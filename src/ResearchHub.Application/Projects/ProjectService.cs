@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using ResearchHub.Application.Common;
 using ResearchHub.Domain.Entities;
 using ResearchHub.Domain.Enums;
+using FluentValidation;
 
 namespace ResearchHub.Application.Projects
 {
@@ -12,14 +13,27 @@ namespace ResearchHub.Application.Projects
     {
         private readonly IProjectRepository _projectRepository;
         private readonly IUnitOfWork _unitOfWork;
-        public ProjectService(IProjectRepository projectRepository, IUnitOfWork unitOfWork)
+        private readonly IValidator<CreateProjectRequest> _createValidator;
+        private readonly IValidator<UpdateProjectRequest> _updateValidator;
+        private readonly IValidator<AddMemberRequest> _addMemberValidator;
+
+        public ProjectService(
+            IProjectRepository projectRepository,
+            IUnitOfWork unitOfWork,
+            IValidator<CreateProjectRequest> createValidator,
+            IValidator<UpdateProjectRequest> updateValidator,
+            IValidator<AddMemberRequest> addMemberValidator)
         {
             _projectRepository = projectRepository;
             _unitOfWork = unitOfWork;
+            _createValidator = createValidator;
+            _updateValidator = updateValidator;
+            _addMemberValidator = addMemberValidator;
         }
 
         public async Task<ProjectDto> CreateAsync(CreateProjectRequest request, Guid currentUserId)
         {
+            await _createValidator.ValidateOrThrowAsync(request);
             var project = new ResearchProject(request.Name, request.Description, currentUserId);
 
             await _projectRepository.AddAsync(project);
@@ -39,6 +53,7 @@ namespace ResearchHub.Application.Projects
 
         public async Task<ProjectDto> UpdateAsync(Guid projectId, UpdateProjectRequest request, Guid currentUserId)
         {
+            await _updateValidator.ValidateOrThrowAsync(request);
             var project = await GetProjectOrThrow(projectId);
 
             EnsureIsOwner(project, currentUserId);
@@ -59,6 +74,7 @@ namespace ResearchHub.Application.Projects
         }
         public async Task<ProjectDto> AddMemberAsync(Guid projectId, AddMemberRequest request, Guid currentUserId)
         {
+            await _addMemberValidator.ValidateOrThrowAsync(request);
             var project = await GetProjectOrThrow(projectId);
 
             EnsureIsOwner(project, currentUserId);

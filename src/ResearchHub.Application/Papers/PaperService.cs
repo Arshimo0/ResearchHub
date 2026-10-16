@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ResearchHub.Application.Common;
 using ResearchHub.Domain.Entities;
-
+using FluentValidation;
 namespace ResearchHub.Application.Papers
 {
     public class PaperService
@@ -13,20 +13,30 @@ namespace ResearchHub.Application.Papers
         private readonly IProjectRepository _projectRepository;
         private readonly ITagRepository _tagRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IValidator<CreatePaperRequest> _createValidator;
+        private readonly IValidator<UpdatePaperRequest> _updateValidator;
+        private readonly IValidator<AddTagRequest> _addTagValidator;
 
         public PaperService(
             IPaperRepository paperRepository,
             IProjectRepository projectRepository,
             ITagRepository tagRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IValidator<CreatePaperRequest> createValidator,
+            IValidator<UpdatePaperRequest> updateValidator,
+            IValidator<AddTagRequest> addTagValidator)
         {
             _paperRepository = paperRepository;
             _projectRepository = projectRepository;
             _tagRepository = tagRepository;
             _unitOfWork = unitOfWork;
+            _createValidator = createValidator;
+            _updateValidator = updateValidator;
+            _addTagValidator = addTagValidator;
         }
         public async Task<PaperDto> CreateAsync(Guid projectId, CreatePaperRequest request, Guid currentUserId)
         {
+            await _createValidator.ValidateOrThrowAsync(request);
             await EnsureIsProjectMemberAsync(projectId, currentUserId);
 
             var paper = new ResearchPaper(
@@ -69,6 +79,7 @@ namespace ResearchHub.Application.Papers
         }
         public async Task<PaperDto> UpdateAsync(Guid paperId, UpdatePaperRequest request, Guid currentUserId)
         {
+            await _updateValidator.ValidateOrThrowAsync(request);
             var paper = await GetPaperOrThrow(paperId);
             await EnsureIsProjectMemberAsync(paper.ProjectId, currentUserId);
 
@@ -92,12 +103,13 @@ namespace ResearchHub.Application.Papers
             _paperRepository.Remove(paper);
             await _unitOfWork.SaveChangesAsync();
         }
-        public async Task<PaperDto> AddTagAsync(Guid paperId, string tagName, Guid currentUserId)
+        public async Task<PaperDto> AddTagAsync(Guid paperId, AddTagRequest request, Guid currentUserId)
         {
+            await _addTagValidator.ValidateOrThrowAsync(request);
             var paper = await GetPaperOrThrow(paperId);
             await EnsureIsProjectMemberAsync(paper.ProjectId, currentUserId);
 
-            var tag = await GetOrCreateTagAsync(paper.ProjectId, tagName);
+            var tag = await GetOrCreateTagAsync(paper.ProjectId, request.Name);
             paper.AddTag(tag);
 
             await _unitOfWork.SaveChangesAsync();

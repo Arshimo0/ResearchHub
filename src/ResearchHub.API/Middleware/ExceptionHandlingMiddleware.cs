@@ -1,73 +1,85 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using ResearchHub.Application.Common;
-namespace ResearchHub.API.Middleware
+
+namespace ResearchHub.API.Middleware;
+
+public class ExceptionHandlingMiddleware
 {
- 
-    public class ExceptionHandlingMiddleware
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+
+    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
-        
-        public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
-        {
-            _next = next;
-            _logger = logger;
-        }
-        public async Task InvokeAsync(HttpContext context)
-        {
-            try
-            {
-                await _next(context);
-            }
-            catch (RequestValidationException ex)
-            {
-                context.Response.ContentType = "application/problem+json";
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-
-                var problemDetails = new
-                {
-                    title = "Validation failed",
-                    status = StatusCodes.Status400BadRequest,
-                    errors = ex.Errors
-                };
-
-                await context.Response.WriteAsync(JsonSerializer.Serialize(problemDetails));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unhandled exception processing {Method} {Path}", context.Request.Method, context.Request.Path);
-
-                var (statusCode, title) = MapException(ex);
-
-                context.Response.ContentType = "application/problem+json";
-                context.Response.StatusCode = statusCode;
-
-                var problemDetails = new
-                {
-                    title,
-                    status = statusCode,
-                    detail = ex.Message
-                };
-
-                await context.Response.WriteAsync(JsonSerializer.Serialize(problemDetails));
-            }
-        }
-
-        private static (int StatusCode, string Title) MapException(Exception ex) => ex switch
-        {
-            UnauthorizedAccessException => ((int)HttpStatusCode.Unauthorized, "Unauthorized"),
-            ForbiddenAccessException => ((int)HttpStatusCode.Forbidden, "Forbidden"),
-            KeyNotFoundException => ((int)HttpStatusCode.NotFound, "Not Found"),
-            InvalidOperationException => ((int)HttpStatusCode.Conflict, "Conflict"),
-            ArgumentException => ((int)HttpStatusCode.BadRequest, "Bad Request"),
-            _ => ((int)HttpStatusCode.InternalServerError, "Internal Server Error")
-        };
+        _next = next;
+        _logger = logger;
     }
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
+        {
+            await _next(context);
+        }
+        catch (Exception ex) when (!context.Response.HasStarted)
+        {
+            var problem = Map(ex);
+
+            if (problem.Status >= 500)
+                _logger.LogError(ex, "Unhandled exception processing {Method} {Path}",
+                    context.Request.Method, context.Request.Path);
+            else
+                _logger.LogWarning("{Method} {Path} returned {Status}: {Message}",
+                    context.Request.Method, context.Request.Path, problem.Status, ex.Message);
+
+            await WriteProblemAsync(context, problem);
+        }
+    }
+
+    private static ProblemInfo Map(Exception ex) => ex switch
+    {
+        RequestValidationException validation =>
+            new(StatusCodes.Status400BadRequest, "Validation failed", null, validation.Errors),
+        UnauthorizedAccessException =>
+            new(StatusCodes.Status401Unauthorized, "Unauthorized", ex.Message, null),
+        ForbiddenAccessException =>
+            new(StatusCodes.Status403Forbidden, "Forbidden", ex.Message, null),
+        KeyNotFoundException =>
+            new(StatusCodes.Status404NotFound, "Not Found", ex.Message, null),
+        InvalidOperationException =>
+            new(StatusCodes.Status409Conflict, "Conflict", ex.Message, null),
+        ArgumentException =>
+            new(StatusCodes.Status400BadRequest, "Bad Request", ex.Message, null),
+        _ =>
+            new(StatusCodes.Status500InternalServerError, "Internal Server Error",
+                "An unexpected error occurred.", null)
+    };
+
+    private static async Task WriteProblemAsync(HttpContext context, ProblemInfo problem)
+    {
+        context.Response.ContentType = "application/problem+json";
+        context.Response.StatusCode = problem.Status;
+
+        var body = new Dictionary<string, object?>
+        {
+            ["title"] = problem.Title,
+            ["status"] = problem.Status,
+            ["traceId"] = context.TraceIdentifier
+        };
+
+        if (problem.Detail is not null)
+            body["detail"] = problem.Detail;
+
+        if (problem.Errors is not null)
+            body["errors"] = problem.Errors;
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(body, JsonOptions));
+    }
+
+    private sealed record ProblemInfo(
+        int Status,
+        string Title,
+        string? Detail,
+        IReadOnlyDictionary<string, string[]>? Errors);
 }

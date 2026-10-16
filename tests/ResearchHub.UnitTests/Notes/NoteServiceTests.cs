@@ -24,7 +24,9 @@ namespace ResearchHub.UnitTests.Notes
                 _noteRepository.Object,
                 _paperRepository.Object,
                 _projectRepository.Object,
-                _unitOfWork.Object);
+                _unitOfWork.Object,
+                new CreateNoteRequestValidator(),
+                new UpdateNoteRequestValidator());
         }
 
         [Fact]
@@ -106,6 +108,15 @@ namespace ResearchHub.UnitTests.Notes
                 _sut.DeleteAsync(note.Id, Guid.NewGuid()));
 
             _noteRepository.Verify(r => r.Remove(It.IsAny<Note>()), Times.Never);
+        }
+        [Fact]
+        public async Task CreateAsync_EmptyContent_ThrowsValidationException()
+        {
+            var ex = await Assert.ThrowsAsync<RequestValidationException>(() =>
+                _sut.CreateAsync(Guid.NewGuid(), new CreateNoteRequest(""), Guid.NewGuid()));
+
+            Assert.Contains("content", ex.Errors.Keys);
+            _noteRepository.Verify(r => r.AddAsync(It.IsAny<Note>()), Times.Never);
         }
     }
 }

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using ResearchHub.Application.Common;
 using ResearchHub.Domain.Entities;
 using ResearchHub.Domain.Enums;
+using FluentValidation;
 
 namespace ResearchHub.Application.ResearchTasks
 {
@@ -14,21 +15,31 @@ namespace ResearchHub.Application.ResearchTasks
         private readonly IPaperRepository _paperRepository;
         private readonly IProjectRepository _projectRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IValidator<CreateResearchTaskRequest> _createValidator;
+        private readonly IValidator<UpdateResearchTaskRequest> _updateValidator;
+        private readonly IValidator<ChangeResearchTaskStatusRequest> _statusValidator;
 
         public ResearchTaskService(
             IResearchTaskRepository taskRepository,
             IPaperRepository paperRepository,
             IProjectRepository projectRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IValidator<CreateResearchTaskRequest> createValidator,
+            IValidator<UpdateResearchTaskRequest> updateValidator,
+            IValidator<ChangeResearchTaskStatusRequest> statusValidator)
         {
             _taskRepository = taskRepository;
             _paperRepository = paperRepository;
             _projectRepository = projectRepository;
             _unitOfWork = unitOfWork;
+            _createValidator = createValidator;
+            _updateValidator = updateValidator;
+            _statusValidator = statusValidator;
         }
 
         public async Task<ResearchTaskDto> CreateAsync(Guid projectId, CreateResearchTaskRequest request, Guid currentUserId)
         {
+            await _createValidator.ValidateOrThrowAsync(request);
             var project = await GetProjectOrThrow(projectId);
             EnsureIsMember(project, currentUserId);
 
@@ -80,6 +91,7 @@ namespace ResearchHub.Application.ResearchTasks
         }
         public async Task<ResearchTaskDto> UpdateAsync(Guid taskId, UpdateResearchTaskRequest request, Guid currentUserId)
         {
+            await _updateValidator.ValidateOrThrowAsync(request);
             var task = await GetTaskOrThrow(taskId);
             var project = await GetProjectOrThrow(task.ProjectId);
             EnsureIsCreatorOrOwner(project, task, currentUserId);
@@ -123,6 +135,7 @@ namespace ResearchHub.Application.ResearchTasks
 
         public async Task<ResearchTaskDto> ChangeStatusAsync(Guid taskId, ChangeResearchTaskStatusRequest request, Guid currentUserId)
         {
+            await _statusValidator.ValidateOrThrowAsync(request);
             var task = await GetTaskOrThrow(taskId);
             var project = await GetProjectOrThrow(task.ProjectId);
             EnsureIsAssigneeOrOwner(project, task, currentUserId);
