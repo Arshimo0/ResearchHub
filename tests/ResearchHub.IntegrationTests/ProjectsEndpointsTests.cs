@@ -133,5 +133,30 @@ namespace ResearchHub.IntegrationTests
             Assert.Contains("Validation failed", body);
             Assert.Contains("traceId", body);
         }
+        [Fact]
+        public async Task GetMyProjects_ReturnsOnlyProjectsTheUserBelongsTo()
+        {
+            var tokenA = await RegisterAndGetTokenAsync("mine1@example.com");
+            var tokenB = await RegisterAndGetTokenAsync("mine2@example.com");
+
+            _client.DefaultRequestHeaders.Authorization = new("Bearer", tokenA);
+            var a1 = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest("A One", "desc"));
+            Assert.Equal(HttpStatusCode.Created, a1.StatusCode);
+            var a2 = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest("A Two", "desc"));
+            Assert.Equal(HttpStatusCode.Created, a2.StatusCode);
+
+            _client.DefaultRequestHeaders.Authorization = new("Bearer", tokenB);
+            var b1 = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest("B One", "desc"));
+            Assert.Equal(HttpStatusCode.Created, b1.StatusCode);
+
+            _client.DefaultRequestHeaders.Authorization = new("Bearer", tokenA);
+            var response = await _client.GetAsync("/api/projects");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var projects = await response.Content.ReadFromJsonAsync<List<ProjectSummaryDto>>();
+            Assert.Equal(2, projects!.Count);
+            Assert.All(projects, p => Assert.Equal(ResearchHub.Domain.Enums.ProjectRole.Owner, p.MyRole));
+            Assert.DoesNotContain(projects, p => p.Name == "B One");
+        }
     }
 }

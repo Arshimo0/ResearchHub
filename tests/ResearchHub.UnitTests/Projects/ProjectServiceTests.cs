@@ -154,4 +154,20 @@ public class ProjectServiceTests
         Assert.Contains("name", ex.Errors.Keys);
         _projectRepository.Verify(r => r.AddAsync(It.IsAny<ResearchProject>()), Times.Never);
     }
+    [Fact]
+    public async Task GetMyProjectsAsync_ReturnsSummariesWithCallersRoleAndMemberCount()
+    {
+        var ownerId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var project = new ResearchProject("AI Research", "desc", ownerId);
+        project.AddMember(memberId, ProjectRole.Member);
+        _projectRepository.Setup(r => r.GetByMemberUserIdAsync(memberId))
+            .ReturnsAsync(new List<ResearchProject> { project });
+
+        var result = await _sut.GetMyProjectsAsync(memberId);
+
+        var summary = Assert.Single(result);
+        Assert.Equal(ProjectRole.Member, summary.MyRole);
+        Assert.Equal(2, summary.MemberCount);
+    }
 }

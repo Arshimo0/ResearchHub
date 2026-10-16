@@ -145,4 +145,16 @@ public class AuthServiceTests
 
         Assert.Contains("email", ex.Errors.Keys);
     }
+    [Fact]
+    public async Task LoginAsync_ValidCredentials_IncludesUserInResult()
+    {
+        var user = new User("test@example.com", "Test User", "correct-hash");
+        _userRepository.Setup(r => r.GetByEmailAsync(It.IsAny<string>())).ReturnsAsync(user);
+        _passwordHasher.Setup(h => h.Verify(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
+
+        var result = await _sut.LoginAsync(new LoginRequest("test@example.com", "correct-password"));
+
+        Assert.Equal(user.Id, result.User.Id);
+        Assert.Equal("Test User", result.User.DisplayName);
+    }
 }
