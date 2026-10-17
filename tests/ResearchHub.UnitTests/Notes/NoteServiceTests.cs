@@ -18,15 +18,20 @@ namespace ResearchHub.UnitTests.Notes
         private readonly Mock<IProjectRepository> _projectRepository = new();
         private readonly Mock<IUnitOfWork> _unitOfWork = new();
         private readonly NoteService _sut;
+        private readonly Mock<IUserRepository> _userRepository = new();
         public NoteServiceTests()
         {
+            _userRepository
+            .Setup(r => r.GetByIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>()))
+            .ReturnsAsync(new List<User>());
             _sut = new NoteService(
                 _noteRepository.Object,
                 _paperRepository.Object,
                 _projectRepository.Object,
                 _unitOfWork.Object,
                 new CreateNoteRequestValidator(),
-                new UpdateNoteRequestValidator());
+                new UpdateNoteRequestValidator(),
+                _userRepository.Object);
         }
 
         [Fact]
@@ -117,6 +122,21 @@ namespace ResearchHub.UnitTests.Notes
 
             Assert.Contains("content", ex.Errors.Keys);
             _noteRepository.Verify(r => r.AddAsync(It.IsAny<Note>()), Times.Never);
+        }
+        [Fact]
+        public async Task CreateAsync_ResultIncludesAuthorName()
+        {
+            var author = new User("ana@example.com", "Ana", "hash");
+            var project = new ResearchProject("AI Research", "desc", author.Id);
+            var paper = new ResearchPaper(project.Id, "Title", "Authors", "abstract", null, null, null, author.Id);
+            _paperRepository.Setup(r => r.GetByIdAsync(paper.Id)).ReturnsAsync(paper);
+            _projectRepository.Setup(r => r.GetByIdAsync(project.Id)).ReturnsAsync(project);
+            _userRepository.Setup(r => r.GetByIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>()))
+                .ReturnsAsync(new List<User> { author });
+
+            var result = await _sut.CreateAsync(paper.Id, new CreateNoteRequest("Nice."), author.Id);
+
+            Assert.Equal("Ana", result.AuthorName);
         }
     }
 }

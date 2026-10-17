@@ -158,5 +158,17 @@ namespace ResearchHub.IntegrationTests
             Assert.All(projects, p => Assert.Equal(ResearchHub.Domain.Enums.ProjectRole.Owner, p.MyRole));
             Assert.DoesNotContain(projects, p => p.Name == "B One");
         }
+        [Fact]
+        public async Task CreateProject_ResponseIncludesOwnerDisplayName()
+        {
+            var token = await RegisterAndGetTokenAsync("names1@example.com");
+            _client.DefaultRequestHeaders.Authorization = new("Bearer", token);
+
+            var response = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest("Named Project", "desc"));
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+            var project = await response.Content.ReadFromJsonAsync<ProjectDto>();
+            Assert.Equal("Test User", project!.Members.Single().DisplayName);
+        }
     }
 }

@@ -12,15 +12,20 @@ public class ProjectServiceTests
     private readonly Mock<IProjectRepository> _projectRepository = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly ProjectService _sut;
-
+    private readonly Mock<IUserRepository> _userRepository = new();
     public ProjectServiceTests()
     {
+        _userRepository
+        .Setup(r => r.GetByIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>()))
+        .ReturnsAsync(new List<User>());
+
         _sut = new ProjectService(
             _projectRepository.Object,
             _unitOfWork.Object,
             new CreateProjectRequestValidator(),
             new UpdateProjectRequestValidator(),
-            new AddMemberRequestValidator());
+            new AddMemberRequestValidator(),
+            _userRepository.Object);
     }
 
     [Fact]
@@ -169,5 +174,18 @@ public class ProjectServiceTests
         var summary = Assert.Single(result);
         Assert.Equal(ProjectRole.Member, summary.MyRole);
         Assert.Equal(2, summary.MemberCount);
+    }
+    [Fact]
+    public async Task GetByIdAsync_IncludesMemberDisplayNames()
+    {
+        var owner = new User("olivia@example.com", "Olivia", "hash");
+        var project = new ResearchProject("AI Research", "desc", owner.Id);
+        _projectRepository.Setup(r => r.GetByIdAsync(project.Id)).ReturnsAsync(project);
+        _userRepository.Setup(r => r.GetByIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>()))
+            .ReturnsAsync(new List<User> { owner });
+
+        var result = await _sut.GetByIdAsync(project.Id, owner.Id);
+
+        Assert.Equal("Olivia", result.Members.Single().DisplayName);
     }
 }
