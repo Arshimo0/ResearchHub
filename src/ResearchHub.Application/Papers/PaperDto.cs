@@ -17,5 +17,5 @@ namespace ResearchHub.Application.Papers
         Guid AddedByUserId,
         string AddedByName,
         DateTime CreatedAt,
-        IReadOnlyCollection<string> Tags);
+        IReadOnlyCollection<TagDto> Tags);
 }
