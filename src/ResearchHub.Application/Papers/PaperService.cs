@@ -16,7 +16,10 @@ namespace ResearchHub.Application.Papers
         private readonly IValidator<CreatePaperRequest> _createValidator;
         private readonly IValidator<UpdatePaperRequest> _updateValidator;
         private readonly IValidator<AddTagRequest> _addTagValidator;
-        private readonly IUserRepository _userRepository;   
+        private readonly IUserRepository _userRepository;
+        private const int MaxSearchTerms = 5;
+        private const int MaxSearchResults = 50;
+        private readonly IValidator<PaperSearchRequest> _searchValidator;   
         public PaperService(
             IPaperRepository paperRepository,
             IProjectRepository projectRepository,
@@ -25,7 +28,8 @@ namespace ResearchHub.Application.Papers
             IValidator<CreatePaperRequest> createValidator,
             IValidator<UpdatePaperRequest> updateValidator,
             IValidator<AddTagRequest> addTagValidator,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            IValidator<PaperSearchRequest> searchValidator)
         {
             _paperRepository = paperRepository;
             _projectRepository = projectRepository;
@@ -35,6 +39,7 @@ namespace ResearchHub.Application.Papers
             _updateValidator = updateValidator;
             _addTagValidator = addTagValidator;
             _userRepository = userRepository;
+            _searchValidator = searchValidator;
         }
         public async Task<PaperDto> CreateAsync(Guid projectId, CreatePaperRequest request, Guid currentUserId)
         {
@@ -159,6 +164,20 @@ namespace ResearchHub.Application.Papers
         {
             var names = await UserNames.LoadAsync(_userRepository, new[] { paper.AddedByUserId });
             return ToDto(paper, names);
+        }
+        public async Task<IReadOnlyList<PaperDto>> SearchAsync(PaperSearchRequest request, Guid currentUserId)
+        {
+            await _searchValidator.ValidateOrThrowAsync(request);
+
+            var terms = request.Query
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Take(MaxSearchTerms)
+                .ToList();
+
+            var papers = await _paperRepository.SearchAsync(currentUserId, terms, request.ProjectId, MaxSearchResults);
+            var names = await UserNames.LoadAsync(_userRepository, papers.Select(p => p.AddedByUserId));
+
+            return papers.Select(p => ToDto(p, names)).ToList();
         }
 
         private static PaperDto ToDto(ResearchPaper paper, UserNames names) => new(
