@@ -57,4 +57,41 @@ public class UsersEndpointsTests : IClassFixture<CustomWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+    [Fact]
+    public async Task UpdateProfile_ChangesDisplayName_AndGetMeReflectsIt()
+    {
+        var user = await RegisterAsync("profile1@example.com", "Old Name");
+        _client.DefaultRequestHeaders.Authorization = new("Bearer", user.AccessToken);
+
+        var update = await _client.PutAsJsonAsync("/api/users/me", new UpdateProfileRequest("New Name"));
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+
+        var response = await _client.GetAsync("/api/users/me");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var me = await response.Content.ReadFromJsonAsync<UserDto>();
+        Assert.Equal("New Name", me!.DisplayName);
+        Assert.Equal("profile1@example.com", me.Email);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_WithEmptyName_Returns400WithFieldError()
+    {
+        var user = await RegisterAsync("profile2@example.com", "Some Name");
+        _client.DefaultRequestHeaders.Authorization = new("Bearer", user.AccessToken);
+
+        var response = await _client.PutAsJsonAsync("/api/users/me", new UpdateProfileRequest(""));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"displayName\"", body);
+    }
+
+    [Fact]
+    public async Task GetMe_WithoutToken_Returns401()
+    {
+        var response = await _client.GetAsync("/api/users/me");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }
