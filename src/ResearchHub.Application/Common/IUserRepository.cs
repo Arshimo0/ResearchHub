@@ -10,6 +10,7 @@ namespace ResearchHub.Application.Common
     {
         Task<User?> GetByEmailAsync(string email);
         Task<User?> GetByIdAsync(Guid id);
+        Task<IReadOnlyList<User>> GetByIdsAsync(IReadOnlyCollection<Guid> ids);
         Task AddAsync(User user);
     }
 }

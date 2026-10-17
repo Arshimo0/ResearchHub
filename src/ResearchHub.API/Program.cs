@@ -99,6 +99,7 @@ builder.Services.AddScoped<ResearchHub.Application.Notes.NoteService>();
 builder.Services.AddScoped<IResearchTaskRepository, ResearchTaskRepository>();
 builder.Services.AddScoped<ResearchHub.Application.ResearchTasks.ResearchTaskService>();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
+builder.Services.AddScoped<ResearchHub.Application.Users.UserService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

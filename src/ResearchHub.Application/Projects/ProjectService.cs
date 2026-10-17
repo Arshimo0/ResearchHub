@@ -16,19 +16,21 @@ namespace ResearchHub.Application.Projects
         private readonly IValidator<CreateProjectRequest> _createValidator;
         private readonly IValidator<UpdateProjectRequest> _updateValidator;
         private readonly IValidator<AddMemberRequest> _addMemberValidator;
-
+        private readonly IUserRepository _userRepository;
         public ProjectService(
             IProjectRepository projectRepository,
             IUnitOfWork unitOfWork,
             IValidator<CreateProjectRequest> createValidator,
             IValidator<UpdateProjectRequest> updateValidator,
-            IValidator<AddMemberRequest> addMemberValidator)
+            IValidator<AddMemberRequest> addMemberValidator,
+            IUserRepository userRepository)
         {
             _projectRepository = projectRepository;
             _unitOfWork = unitOfWork;
             _createValidator = createValidator;
             _updateValidator = updateValidator;
             _addMemberValidator = addMemberValidator;
+            _userRepository = userRepository;
         }
 
         public async Task<ProjectDto> CreateAsync(CreateProjectRequest request, Guid currentUserId)
@@ -39,7 +41,7 @@ namespace ResearchHub.Application.Projects
             await _projectRepository.AddAsync(project);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(project);
+            return await ToDtoAsync(project);
         }
 
         public async Task<ProjectDto> GetByIdAsync(Guid projectId, Guid currentUserId)
@@ -48,7 +50,7 @@ namespace ResearchHub.Application.Projects
 
             EnsureIsMember(project, currentUserId);
 
-            return ToDto(project);
+            return await ToDtoAsync(project);
         }
 
         public async Task<ProjectDto> UpdateAsync(Guid projectId, UpdateProjectRequest request, Guid currentUserId)
@@ -61,7 +63,7 @@ namespace ResearchHub.Application.Projects
             project.UpdateDetails(request.Name, request.Description);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(project);
+            return await ToDtoAsync(project);
         } 
         public async Task DeleteAsync(Guid projectId, Guid currentUserId)
         {
@@ -82,7 +84,7 @@ namespace ResearchHub.Application.Projects
             project.AddMember(request.UserId, request.Role);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(project);
+            return await ToDtoAsync(project);
         }
 
         public async Task<ProjectDto> RemoveMemberAsync(Guid projectId, Guid memberUserId, Guid currentUserId)
@@ -94,7 +96,7 @@ namespace ResearchHub.Application.Projects
             project.RemoveMember(memberUserId);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(project);
+            return await ToDtoAsync(project);
         }
         private async Task<ResearchProject> GetProjectOrThrow(Guid projectId) =>
             await _projectRepository.GetByIdAsync(projectId)
@@ -112,13 +114,20 @@ namespace ResearchHub.Application.Projects
                 throw new ForbiddenAccessException("Only a project owner can perform this action.");
         }
 
-        private static ProjectDto ToDto(ResearchProject project) => new(
-            project.Id,
-            project.Name,
-            project.Description,
-            project.Status,
-            project.CreatedAt,
-            project.Members.Select(m => new ProjectMemberDto(m.UserId, m.ProjectRole, m.JoinedAt)).ToList());
+        private async Task<ProjectDto> ToDtoAsync(ResearchProject project)
+        {
+            var names = await UserNames.LoadAsync(_userRepository, project.Members.Select(m => m.UserId));
+
+            return new ProjectDto(
+                project.Id,
+                project.Name,
+                project.Description,
+                project.Status,
+                project.CreatedAt,
+                project.Members
+                    .Select(m => new ProjectMemberDto(m.UserId, names.Of(m.UserId), m.ProjectRole, m.JoinedAt))
+                    .ToList());
+        }
         public async Task<IReadOnlyList<ProjectSummaryDto>> GetMyProjectsAsync(Guid currentUserId)
         {
             var projects = await _projectRepository.GetByMemberUserIdAsync(currentUserId);
