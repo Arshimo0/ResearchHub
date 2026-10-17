@@ -32,7 +32,9 @@ namespace ResearchHub.UnitTests.Papers
                 new CreatePaperRequestValidator(),
                 new UpdatePaperRequestValidator(),
                 new AddTagRequestValidator(),
-                _userRepository.Object);
+                _userRepository.Object,
+                new PaperSearchRequestValidator()
+                );
         }
 
         private ResearchProject CreateProjectWithMember(Guid memberId)
@@ -166,6 +168,31 @@ namespace ResearchHub.UnitTests.Papers
                 new CreatePaperRequest("Title", "Authors", "abstract", null, null, null, null), user.Id);
 
             Assert.Equal("Ana", result.AddedByName);
+        }
+        [Fact]
+        public async Task SearchAsync_BlankQuery_ThrowsValidationException()
+        {
+            var ex = await Assert.ThrowsAsync<RequestValidationException>(() =>
+                _sut.SearchAsync(new PaperSearchRequest("  ", null), Guid.NewGuid()));
+
+            Assert.Contains("query", ex.Errors.Keys);
+        }
+
+        [Fact]
+        public async Task SearchAsync_SplitsQueryIntoTermsAndCapsThemAtFive()
+        {
+            var userId = Guid.NewGuid();
+            _paperRepository
+                .Setup(r => r.SearchAsync(userId, It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(), It.IsAny<int>()))
+                .ReturnsAsync(new List<ResearchPaper>());
+
+            await _sut.SearchAsync(new PaperSearchRequest("  attention   is all you need extra words ", null), userId);
+
+            _paperRepository.Verify(r => r.SearchAsync(
+                userId,
+                It.Is<IReadOnlyList<string>>(t => t.SequenceEqual(new[] { "attention", "is", "all", "you", "need" })),
+                null,
+                50), Times.Once);
         }
     }
 }
