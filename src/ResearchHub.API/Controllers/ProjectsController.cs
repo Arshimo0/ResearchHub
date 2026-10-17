@@ -25,6 +25,12 @@ public class ProjectsController : ApiControllerBase
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     
     }
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<ProjectSummaryDto>>> GetMine()
+    {
+        var result = await _projectService.GetMyProjectsAsync(CurrentUserId);
+        return Ok(result);
+    }
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ProjectDto>> GetById(Guid id)
     {

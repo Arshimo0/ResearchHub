@@ -14,5 +14,5 @@ namespace ResearchHub.Application.Projects
         DateTime CreatedAt,
         IReadOnlyCollection<ProjectMemberDto> Members);
 
-    public record ProjectMemberDto(Guid UserId, ProjectRole Role, DateTime JoinedAt);
+    public record ProjectMemberDto(Guid UserId, string DisplayName, ProjectRole Role, DateTime JoinedAt);
 }

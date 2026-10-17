@@ -29,5 +29,11 @@ namespace ResearchHub.Infrastructure.Persistence
         {
             _dbContext.ResearchProjects.Remove(project);
         }
+        public async Task<IReadOnlyList<ResearchProject>> GetByMemberUserIdAsync(Guid userId) =>
+        await _dbContext.ResearchProjects
+            .Include(p => p.Members)
+            .Where(p => p.Members.Any(m => m.UserId == userId))
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
     }
 }

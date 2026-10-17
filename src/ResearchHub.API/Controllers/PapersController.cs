@@ -73,4 +73,12 @@ public class PapersController : ApiControllerBase
         var result = await _paperService.RemoveTagAsync(id, tagId, CurrentUserId);
         return Ok(result);
     }
+    [HttpGet("papers/search")]
+    public async Task<ActionResult<IReadOnlyList<PaperDto>>> Search(
+        [FromQuery] string? query,
+        [FromQuery] Guid? projectId)
+    {
+        var result = await _paperService.SearchAsync(new PaperSearchRequest(query ?? "", projectId), CurrentUserId);
+        return Ok(result);
+    }
 }

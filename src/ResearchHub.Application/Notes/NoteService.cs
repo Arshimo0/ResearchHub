@@ -16,14 +16,15 @@ namespace ResearchHub.Application.Notes
         private readonly IUnitOfWork _unitOfWork;
         private readonly IValidator<CreateNoteRequest> _createValidator;
         private readonly IValidator<UpdateNoteRequest> _updateValidator;
-
+        private readonly IUserRepository _userRepository;
         public NoteService(
             INoteRepository noteRepository,
             IPaperRepository paperRepository,
             IProjectRepository projectRepository,
             IUnitOfWork unitOfWork,
             IValidator<CreateNoteRequest> createValidator,
-            IValidator<UpdateNoteRequest> updateValidator)
+            IValidator<UpdateNoteRequest> updateValidator,
+            IUserRepository userRepository)
         {
             _noteRepository = noteRepository;
             _paperRepository = paperRepository;
@@ -31,6 +32,7 @@ namespace ResearchHub.Application.Notes
             _unitOfWork = unitOfWork;
             _createValidator = createValidator;
             _updateValidator = updateValidator;
+            _userRepository = userRepository;
         }
         public async Task<NoteDto> CreateAsync(Guid paperId, CreateNoteRequest request, Guid currentUserId)
         {
@@ -43,7 +45,7 @@ namespace ResearchHub.Application.Notes
             await _noteRepository.AddAsync(note);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(note);
+            return await ToDtoAsync(note);
         }
         
         public async Task<IReadOnlyList<NoteDto>> GetByPaperIdAsync(Guid paperId, Guid currentUserId)
@@ -52,7 +54,8 @@ namespace ResearchHub.Application.Notes
             await EnsureIsProjectMemberAsync(paper.ProjectId, currentUserId);
 
             var notes = await _noteRepository.GetByPaperIdAsync(paperId);
-            return notes.Select(ToDto).ToList();
+            var names = await UserNames.LoadAsync(_userRepository, notes.Select(n => n.AuthorId));
+            return notes.Select(n => ToDto(n, names)).ToList();
         }
             
         public async Task<NoteDto> UpdateAsync(Guid noteId, UpdateNoteRequest request, Guid currentUserId)
@@ -64,7 +67,7 @@ namespace ResearchHub.Application.Notes
             note.UpdateContent(request.Content);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(note);
+            return await ToDtoAsync(note);
         }
         public async Task DeleteAsync(Guid noteId, Guid currentUserId)
         {
@@ -98,7 +101,13 @@ namespace ResearchHub.Application.Notes
                 throw new ForbiddenAccessException("Only the author can modify this note.");
         }
 
-        private static NoteDto ToDto(Note note) =>
-            new(note.Id, note.PaperId, note.AuthorId, note.Content, note.CreatedAt, note.UpdatedAt);
+        private async Task<NoteDto> ToDtoAsync(Note note)
+        {
+            var names = await UserNames.LoadAsync(_userRepository, new[] { note.AuthorId });
+            return ToDto(note, names);
+        }
+
+        private static NoteDto ToDto(Note note, UserNames names) =>
+            new(note.Id, note.PaperId, note.AuthorId, names.Of(note.AuthorId), note.Content, note.CreatedAt, note.UpdatedAt);
     }
 }

@@ -15,6 +15,7 @@ namespace ResearchHub.Application.Papers
         string? DoiOrUrl,
         string? PdfReference,
         Guid AddedByUserId,
+        string AddedByName,
         DateTime CreatedAt,
         IReadOnlyCollection<string> Tags);
 }

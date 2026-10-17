@@ -28,5 +28,7 @@ namespace ResearchHub.Infrastructure.Persistence
             _dbContext.Users.Add(user);
             return Task.CompletedTask;
         }
+        public async Task<IReadOnlyList<User>> GetByIdsAsync(IReadOnlyCollection<Guid> ids) =>
+            await _dbContext.Users.Where(u => ids.Contains(u.Id)).ToListAsync();
     }
 }

@@ -18,9 +18,13 @@ public class ResearchTaskServiceTests
     private readonly Mock<IProjectRepository> _projectRepository = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly ResearchTaskService _sut;
-
+    private readonly Mock<IUserRepository> _userRepository = new();
     public ResearchTaskServiceTests()
     {
+        _userRepository
+        .Setup(r => r.GetByIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>()))
+        .ReturnsAsync(new List<User>());
+
         _sut = new ResearchTaskService(
             _taskRepository.Object,
             _paperRepository.Object,
@@ -28,7 +32,8 @@ public class ResearchTaskServiceTests
             _unitOfWork.Object,
             new CreateResearchTaskRequestValidator(),
             new UpdateResearchTaskRequestValidator(),
-            new ChangeResearchTaskStatusRequestValidator());
+            new ChangeResearchTaskStatusRequestValidator(),
+            _userRepository.Object);
     }
 
     // A project with one Owner and two regular Members
@@ -186,5 +191,22 @@ public class ResearchTaskServiceTests
 
         Assert.Contains("priority", ex.Errors.Keys);
         _taskRepository.Verify(r => r.AddAsync(It.IsAny<ResearchTask>()), Times.Never);
+    }
+    [Fact]
+    public async Task CreateAsync_ResultIncludesCreatorAndAssigneeNames()
+    {
+        var owner = new User("olivia@example.com", "Olivia", "hash");
+        var member = new User("sam@example.com", "Sam", "hash");
+        var project = new ResearchProject("AI Research", "desc", owner.Id);
+        project.AddMember(member.Id, ProjectRole.Member);
+        _projectRepository.Setup(r => r.GetByIdAsync(project.Id)).ReturnsAsync(project);
+        _userRepository.Setup(r => r.GetByIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>()))
+            .ReturnsAsync(new List<User> { owner, member });
+
+        var result = await _sut.CreateAsync(project.Id,
+            new CreateResearchTaskRequest("Read paper", "desc", TaskPriority.High, null, null, member.Id), owner.Id);
+
+        Assert.Equal("Olivia", result.CreatedByName);
+        Assert.Equal("Sam", result.AssignedToName);
     }
 }

@@ -17,9 +17,13 @@ namespace ResearchHub.UnitTests.Papers
         private readonly Mock<ITagRepository> _tagRepository = new();
         private readonly Mock<IUnitOfWork> _unitOfWork = new();
         private readonly PaperService _sut;
-
+        private readonly Mock<IUserRepository> _userRepository = new();
         public PaperServiceTests()
         {
+            _userRepository
+            .Setup(r => r.GetByIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>()))
+            .ReturnsAsync(new List<User>());
+
             _sut = new PaperService(
                 _paperRepository.Object,
                 _projectRepository.Object,
@@ -27,7 +31,10 @@ namespace ResearchHub.UnitTests.Papers
                 _unitOfWork.Object,
                 new CreatePaperRequestValidator(),
                 new UpdatePaperRequestValidator(),
-                new AddTagRequestValidator());
+                new AddTagRequestValidator(),
+                _userRepository.Object,
+                new PaperSearchRequestValidator()
+                );
         }
 
         private ResearchProject CreateProjectWithMember(Guid memberId)
@@ -147,6 +154,45 @@ namespace ResearchHub.UnitTests.Papers
                 _sut.CreateAsync(Guid.NewGuid(), request, Guid.NewGuid()));
 
             Assert.Contains("tags", ex.Errors.Keys);
+        }
+        [Fact]
+        public async Task CreateAsync_ResultIncludesAddedByName()
+        {
+            var user = new User("ana@example.com", "Ana", "hash");
+            var project = new ResearchProject("AI Research", "desc", user.Id);
+            _projectRepository.Setup(r => r.GetByIdAsync(project.Id)).ReturnsAsync(project);
+            _userRepository.Setup(r => r.GetByIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>()))
+                .ReturnsAsync(new List<User> { user });
+
+            var result = await _sut.CreateAsync(project.Id,
+                new CreatePaperRequest("Title", "Authors", "abstract", null, null, null, null), user.Id);
+
+            Assert.Equal("Ana", result.AddedByName);
+        }
+        [Fact]
+        public async Task SearchAsync_BlankQuery_ThrowsValidationException()
+        {
+            var ex = await Assert.ThrowsAsync<RequestValidationException>(() =>
+                _sut.SearchAsync(new PaperSearchRequest("  ", null), Guid.NewGuid()));
+
+            Assert.Contains("query", ex.Errors.Keys);
+        }
+
+        [Fact]
+        public async Task SearchAsync_SplitsQueryIntoTermsAndCapsThemAtFive()
+        {
+            var userId = Guid.NewGuid();
+            _paperRepository
+                .Setup(r => r.SearchAsync(userId, It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(), It.IsAny<int>()))
+                .ReturnsAsync(new List<ResearchPaper>());
+
+            await _sut.SearchAsync(new PaperSearchRequest("  attention   is all you need extra words ", null), userId);
+
+            _paperRepository.Verify(r => r.SearchAsync(
+                userId,
+                It.Is<IReadOnlyList<string>>(t => t.SequenceEqual(new[] { "attention", "is", "all", "you", "need" })),
+                null,
+                50), Times.Once);
         }
     }
 }

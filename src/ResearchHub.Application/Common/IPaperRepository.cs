@@ -11,6 +11,7 @@ namespace ResearchHub.Application.Common
         Task<ResearchPaper?> GetByIdAsync(Guid id);
         Task<IReadOnlyList<ResearchPaper>> GetByProjectIdAsync(Guid projectId, PaperFilter? filter = null);
         Task AddAsync(ResearchPaper paper);
+        Task<IReadOnlyList<ResearchPaper>> SearchAsync(Guid userId, IReadOnlyList<string> terms, Guid? projectId, int limit);
         void Remove(ResearchPaper paper);
     }
 }

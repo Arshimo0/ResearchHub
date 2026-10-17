@@ -25,11 +25,11 @@ namespace ResearchHub.IntegrationTests
         {
             var response = await _client.PostAsJsonAsync("/api/auth/register",
                 new RegisterRequest(email, "Test User", "SecurePass123!"));
-            var result = await response.Content.ReadFromJsonAsync<AuthResult>();
+            var result = await response.Content.ReadJsonAsync<AuthResult>();
 
             _client.DefaultRequestHeaders.Authorization = new("Bearer", result!.AccessToken);
             var meResponse = await _client.GetAsync("/api/auth/me");
-            var me = await meResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+            var me = await meResponse.Content.ReadJsonAsync<Dictionary<string, string>>();
 
             return (result.AccessToken, me!["userId"]);
         }
@@ -42,11 +42,11 @@ namespace ResearchHub.IntegrationTests
 
             var projectResponse = await _client.PostAsJsonAsync("/api/projects",
                 new CreateProjectRequest("Shared Project", "desc"));
-            var project = await projectResponse.Content.ReadFromJsonAsync<ProjectDto>();
+            var project = await projectResponse.Content.ReadJsonAsync<ProjectDto>();
 
             var paperResponse = await _client.PostAsJsonAsync($"/api/projects/{project!.Id}/papers",
                 new CreatePaperRequest("Title", "Authors", "abstract", null, null, null, null));
-            var paper = await paperResponse.Content.ReadFromJsonAsync<PaperDto>();
+            var paper = await paperResponse.Content.ReadJsonAsync<PaperDto>();
 
             var (memberToken, memberId) = await RegisterAsync("notemember1@example.com");
 
@@ -65,7 +65,7 @@ namespace ResearchHub.IntegrationTests
             var noteResponse = await _client.PostAsJsonAsync($"/api/papers/{paper!.Id}/notes",
                 new CreateNoteRequest("Member's note"));
             Assert.Equal(HttpStatusCode.Created, noteResponse.StatusCode);
-            var note = await noteResponse.Content.ReadFromJsonAsync<NoteDto>();
+            var note = await noteResponse.Content.ReadJsonAsync<NoteDto>();
 
             _client.DefaultRequestHeaders.Authorization = new("Bearer", ownerToken);
             var updateResponse = await _client.PutAsJsonAsync($"/api/notes/{note!.Id}",

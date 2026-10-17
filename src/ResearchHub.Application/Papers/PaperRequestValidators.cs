@@ -49,3 +49,16 @@ public class AddTagRequestValidator : AbstractValidator<AddTagRequest>
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
     }
 }
+public class PaperSearchRequestValidator : AbstractValidator<PaperSearchRequest>
+{
+    public PaperSearchRequestValidator()
+    {
+        RuleLevelCascadeMode = CascadeMode.Stop;
+
+        RuleFor(x => x.Query)
+            .NotEmpty()
+            .MaximumLength(100)
+            .Must(q => q.Trim().Length >= 2)
+            .WithMessage("Search text must be at least 2 characters.");
+    }
+}

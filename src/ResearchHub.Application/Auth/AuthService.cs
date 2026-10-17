@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using ResearchHub.Application.Common;
 using ResearchHub.Domain.Entities;
 using FluentValidation;
+using ResearchHub.Application.Users;
 namespace ResearchHub.Application.Auth
 {
     public class AuthService
@@ -86,7 +87,7 @@ namespace ResearchHub.Application.Auth
             await _refreshTokenRepository.AddAsync(refreshToken);
             await _unitOfWork.SaveChangesAsync();
 
-            return new AuthResult(accessToken, refreshTokenValue, expiresAt);
+            return new AuthResult(accessToken, refreshTokenValue, expiresAt, UserDto.FromEntity(user));
         }
     }
 }

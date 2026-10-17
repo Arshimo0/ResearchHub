@@ -8,6 +8,7 @@ namespace ResearchHub.Application.Common
 {
     public interface IProjectRepository
     {
+        Task<IReadOnlyList<ResearchProject>> GetByMemberUserIdAsync(Guid userId);
         Task<ResearchProject?> GetByIdAsync(Guid id);
         Task AddAsync(ResearchProject project);
         void Remove(ResearchProject project);      

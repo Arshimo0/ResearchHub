@@ -56,5 +56,27 @@ namespace ResearchHub.Infrastructure.Persistence
         {
             _dbContext.ResearchPapers.Remove(paper);
         }
+        public async Task<IReadOnlyList<ResearchPaper>> SearchAsync(Guid userId, IReadOnlyList<string> terms, Guid? projectId, int limit)
+        {
+            var query = _dbContext.ResearchPapers
+                .Include(p => p.Tags)
+                .Where(p => _dbContext.ProjectMembers
+                    .Any(m => m.ProjectId == p.ProjectId && m.UserId == userId));
+
+            if (projectId.HasValue)
+                query = query.Where(p => p.ProjectId == projectId.Value);
+
+            foreach (var term in terms)
+            {
+                var t = term;
+                query = query.Where(p =>
+                    p.Title.Contains(t) || p.Authors.Contains(t) || p.Abstract.Contains(t));
+            }
+
+            return await query
+                .OrderByDescending(p => p.CreatedAt)
+                .Take(limit)
+                .ToListAsync();
+        }
     }
 }

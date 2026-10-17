@@ -16,7 +16,10 @@ namespace ResearchHub.Application.Papers
         private readonly IValidator<CreatePaperRequest> _createValidator;
         private readonly IValidator<UpdatePaperRequest> _updateValidator;
         private readonly IValidator<AddTagRequest> _addTagValidator;
-
+        private readonly IUserRepository _userRepository;
+        private const int MaxSearchTerms = 5;
+        private const int MaxSearchResults = 50;
+        private readonly IValidator<PaperSearchRequest> _searchValidator;   
         public PaperService(
             IPaperRepository paperRepository,
             IProjectRepository projectRepository,
@@ -24,7 +27,9 @@ namespace ResearchHub.Application.Papers
             IUnitOfWork unitOfWork,
             IValidator<CreatePaperRequest> createValidator,
             IValidator<UpdatePaperRequest> updateValidator,
-            IValidator<AddTagRequest> addTagValidator)
+            IValidator<AddTagRequest> addTagValidator,
+            IUserRepository userRepository,
+            IValidator<PaperSearchRequest> searchValidator)
         {
             _paperRepository = paperRepository;
             _projectRepository = projectRepository;
@@ -33,6 +38,8 @@ namespace ResearchHub.Application.Papers
             _createValidator = createValidator;
             _updateValidator = updateValidator;
             _addTagValidator = addTagValidator;
+            _userRepository = userRepository;
+            _searchValidator = searchValidator;
         }
         public async Task<PaperDto> CreateAsync(Guid projectId, CreatePaperRequest request, Guid currentUserId)
         {
@@ -61,21 +68,22 @@ namespace ResearchHub.Application.Papers
             await _paperRepository.AddAsync(paper);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(paper);
+            return await ToDtoAsync(paper);
         }
         public async Task<IReadOnlyList<PaperDto>> GetByProjectIdAsync(Guid projectId, PaperFilter? filter, Guid currentUserId)
         {
             await EnsureIsProjectMemberAsync(projectId, currentUserId);
 
             var papers = await _paperRepository.GetByProjectIdAsync(projectId, filter);
-            return papers.Select(ToDto).ToList();
+            var names = await UserNames.LoadAsync(_userRepository, papers.Select(p => p.AddedByUserId));
+            return papers.Select(p => ToDto(p, names)).ToList();
         }
         public async Task<PaperDto> GetByIdAsync(Guid paperId, Guid currentUserId)
         {
             var paper = await GetPaperOrThrow(paperId);
             await EnsureIsProjectMemberAsync(paper.ProjectId, currentUserId);
 
-            return ToDto(paper);
+            return await ToDtoAsync(paper);
         }
         public async Task<PaperDto> UpdateAsync(Guid paperId, UpdatePaperRequest request, Guid currentUserId)
         {
@@ -93,7 +101,7 @@ namespace ResearchHub.Application.Papers
 
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(paper);
+            return await ToDtoAsync(paper);
         }
         public async Task DeleteAsync(Guid paperId, Guid currentUserId)
         {
@@ -114,7 +122,7 @@ namespace ResearchHub.Application.Papers
 
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(paper);
+            return await ToDtoAsync(paper);
         }
 
         public async Task<PaperDto> RemoveTagAsync(Guid paperId, Guid tagId, Guid currentUserId)
@@ -125,7 +133,7 @@ namespace ResearchHub.Application.Papers
             paper.RemoveTag(tagId);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(paper);
+            return await ToDtoAsync(paper);
         }
 
         private async Task<Tag> GetOrCreateTagAsync(Guid projectId, string tagName)
@@ -152,7 +160,27 @@ namespace ResearchHub.Application.Papers
                 throw new Common.ForbiddenAccessException("You are not a member of this project.");
         }
 
-        private static PaperDto ToDto(ResearchPaper paper) => new(
+        private async Task<PaperDto> ToDtoAsync(ResearchPaper paper)
+        {
+            var names = await UserNames.LoadAsync(_userRepository, new[] { paper.AddedByUserId });
+            return ToDto(paper, names);
+        }
+        public async Task<IReadOnlyList<PaperDto>> SearchAsync(PaperSearchRequest request, Guid currentUserId)
+        {
+            await _searchValidator.ValidateOrThrowAsync(request);
+
+            var terms = request.Query
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Take(MaxSearchTerms)
+                .ToList();
+
+            var papers = await _paperRepository.SearchAsync(currentUserId, terms, request.ProjectId, MaxSearchResults);
+            var names = await UserNames.LoadAsync(_userRepository, papers.Select(p => p.AddedByUserId));
+
+            return papers.Select(p => ToDto(p, names)).ToList();
+        }
+
+        private static PaperDto ToDto(ResearchPaper paper, UserNames names) => new(
             paper.Id,
             paper.ProjectId,
             paper.Title,
@@ -162,6 +190,7 @@ namespace ResearchHub.Application.Papers
             paper.DoiOrUrl,
             paper.PdfReference,
             paper.AddedByUserId,
+            names.Of(paper.AddedByUserId),
             paper.CreatedAt,
             paper.Tags.Select(t => t.Name).ToList());
     }

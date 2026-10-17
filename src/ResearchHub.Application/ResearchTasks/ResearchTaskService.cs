@@ -18,7 +18,7 @@ namespace ResearchHub.Application.ResearchTasks
         private readonly IValidator<CreateResearchTaskRequest> _createValidator;
         private readonly IValidator<UpdateResearchTaskRequest> _updateValidator;
         private readonly IValidator<ChangeResearchTaskStatusRequest> _statusValidator;
-
+        private readonly IUserRepository _userRepository;
         public ResearchTaskService(
             IResearchTaskRepository taskRepository,
             IPaperRepository paperRepository,
@@ -26,7 +26,8 @@ namespace ResearchHub.Application.ResearchTasks
             IUnitOfWork unitOfWork,
             IValidator<CreateResearchTaskRequest> createValidator,
             IValidator<UpdateResearchTaskRequest> updateValidator,
-            IValidator<ChangeResearchTaskStatusRequest> statusValidator)
+            IValidator<ChangeResearchTaskStatusRequest> statusValidator,
+            IUserRepository userRepository)
         {
             _taskRepository = taskRepository;
             _paperRepository = paperRepository;
@@ -35,6 +36,7 @@ namespace ResearchHub.Application.ResearchTasks
             _createValidator = createValidator;
             _updateValidator = updateValidator;
             _statusValidator = statusValidator;
+            _userRepository = userRepository;
         }
 
         public async Task<ResearchTaskDto> CreateAsync(Guid projectId, CreateResearchTaskRequest request, Guid currentUserId)
@@ -70,7 +72,7 @@ namespace ResearchHub.Application.ResearchTasks
             await _taskRepository.AddAsync(task);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(task);
+            return await ToDtoAsync(task);
         }
         public async Task<IReadOnlyList<ResearchTaskDto>> GetByProjectIdAsync(Guid projectId, Guid currentUserId)
         {
@@ -78,7 +80,8 @@ namespace ResearchHub.Application.ResearchTasks
             EnsureIsMember(project, currentUserId);
 
             var tasks = await _taskRepository.GetByProjectIdAsync(projectId);
-            return tasks.Select(ToDto).ToList();
+            var names = await LoadNamesAsync(tasks);
+            return tasks.Select(t => ToDto(t, names)).ToList();
         }
 
         public async Task<ResearchTaskDto> GetByIdAsync(Guid taskId, Guid currentUserId)
@@ -87,7 +90,7 @@ namespace ResearchHub.Application.ResearchTasks
             var project = await GetProjectOrThrow(task.ProjectId);
             EnsureIsMember(project, currentUserId);
 
-            return ToDto(task);
+            return await ToDtoAsync(task);
         }
         public async Task<ResearchTaskDto> UpdateAsync(Guid taskId, UpdateResearchTaskRequest request, Guid currentUserId)
         {
@@ -99,7 +102,7 @@ namespace ResearchHub.Application.ResearchTasks
             task.UpdateDetails(request.Title, request.Description, request.Priority, request.Deadline);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(task);
+            return await ToDtoAsync(task);
         }
 
         public async Task DeleteAsync(Guid taskId, Guid currentUserId)
@@ -130,7 +133,7 @@ namespace ResearchHub.Application.ResearchTasks
 
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(task);
+            return await ToDtoAsync(task);
         }
 
         public async Task<ResearchTaskDto> ChangeStatusAsync(Guid taskId, ChangeResearchTaskStatusRequest request, Guid currentUserId)
@@ -143,7 +146,7 @@ namespace ResearchHub.Application.ResearchTasks
             task.ChangeStatus(request.Status);
             await _unitOfWork.SaveChangesAsync();
 
-            return ToDto(task);
+            return await ToDtoAsync(task);
         }
 
         private async Task<ResearchTask> GetTaskOrThrow(Guid taskId) =>
@@ -180,7 +183,17 @@ namespace ResearchHub.Application.ResearchTasks
                 throw new ForbiddenAccessException("Only the task's assignee or a project owner can change its status.");
         }
 
-        private static ResearchTaskDto ToDto(ResearchTask task) => new(
+        private async Task<ResearchTaskDto> ToDtoAsync(ResearchTask task) =>
+            ToDto(task, await LoadNamesAsync(new[] { task }));
+
+        private Task<UserNames> LoadNamesAsync(IEnumerable<ResearchTask> tasks) =>
+            UserNames.LoadAsync(
+                _userRepository,
+                tasks.SelectMany(t => t.AssignedToUserId.HasValue
+                    ? new[] { t.CreatedByUserId, t.AssignedToUserId.Value }
+                    : new[] { t.CreatedByUserId }));
+
+        private static ResearchTaskDto ToDto(ResearchTask task, UserNames names) => new(
             task.Id,
             task.ProjectId,
             task.PaperId,
@@ -190,8 +203,10 @@ namespace ResearchHub.Application.ResearchTasks
             task.Priority,
             task.Deadline,
             task.AssignedToUserId,
+            names.Of(task.AssignedToUserId),
             task.CreatedByUserId,
+            names.Of(task.CreatedByUserId),
             task.CreatedAt,
             task.CompletedAt);
-        }
+    }
 }

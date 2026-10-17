@@ -15,6 +15,8 @@ public record ResearchTaskDto(
     TaskPriority Priority,
     DateTime? Deadline,
     Guid? AssignedToUserId,
+    string? AssignedToName,
     Guid CreatedByUserId,
+    string CreatedByName,
     DateTime CreatedAt,
     DateTime? CompletedAt);
