@@ -100,6 +100,16 @@ builder.Services.AddScoped<IResearchTaskRepository, ResearchTaskRepository>();
 builder.Services.AddScoped<ResearchHub.Application.ResearchTasks.ResearchTaskService>();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 builder.Services.AddScoped<ResearchHub.Application.Users.UserService>();
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? Array.Empty<string>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -116,7 +126,7 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ResearchHub.API.Middleware.ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
-
+app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
