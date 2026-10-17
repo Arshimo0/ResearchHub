@@ -24,7 +24,7 @@ namespace ResearchHub.IntegrationTests
         {
             var response = await _client.PostAsJsonAsync("/api/auth/register",
                 new RegisterRequest(email, "Test User", "SecurePass123!"));
-            var result = await response.Content.ReadFromJsonAsync<AuthResult>();
+            var result = await response.Content.ReadJsonAsync<AuthResult>();
             return result!.AccessToken;
         }
 
@@ -32,7 +32,7 @@ namespace ResearchHub.IntegrationTests
         {
             _client.DefaultRequestHeaders.Authorization = new("Bearer", token);
             var response = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest(name, "desc"));
-            return (await response.Content.ReadFromJsonAsync<ProjectDto>())!;
+            return (await response.Content.ReadJsonAsync<ProjectDto>())!;
         }
 
         [Fact]
@@ -46,7 +46,7 @@ namespace ResearchHub.IntegrationTests
                     new DateTime(2017, 6, 12), null, null, new[] { "transformers", "nlp" }));
 
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-            var paper = await response.Content.ReadFromJsonAsync<PaperDto>();
+            var paper = await response.Content.ReadJsonAsync<PaperDto>();
             Assert.Equal(2, paper!.Tags.Count);
         }
 
@@ -62,7 +62,7 @@ namespace ResearchHub.IntegrationTests
                 new CreatePaperRequest("Paper B", "Author B", "abstract", null, null, null, new[] { "nlp" }));
 
             var response = await _client.GetAsync($"/api/projects/{project.Id}/papers?tag=vision");
-            var papers = await response.Content.ReadFromJsonAsync<List<PaperDto>>();
+            var papers = await response.Content.ReadJsonAsync<List<PaperDto>>();
 
             Assert.Single(papers!);
             Assert.Equal("Paper A", papers![0].Title);
@@ -109,13 +109,13 @@ namespace ResearchHub.IntegrationTests
 
             var all = await _client.GetAsync("/api/papers/search?query=quantum");
             Assert.Equal(HttpStatusCode.OK, all.StatusCode);
-            var allPapers = await all.Content.ReadFromJsonAsync<List<PaperDto>>();
+            var allPapers = await all.Content.ReadJsonAsync<List<PaperDto>>();
             Assert.Equal(2, allPapers!.Count);
             Assert.DoesNotContain(allPapers, p => p.Title == "Quantum Secrets");
 
             // every word must match somewhere: only the second paper has both words
             var both = await _client.GetAsync("/api/papers/search?query=quantum%20computing");
-            var bothPapers = await both.Content.ReadFromJsonAsync<List<PaperDto>>();
+            var bothPapers = await both.Content.ReadJsonAsync<List<PaperDto>>();
             Assert.Equal("Advanced Topics", Assert.Single(bothPapers!).Title);
         }
 
@@ -137,7 +137,7 @@ namespace ResearchHub.IntegrationTests
             var response = await _client.GetAsync($"/api/papers/search?query=graph&projectId={projectTwo.Id}");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-            var papers = await response.Content.ReadFromJsonAsync<List<PaperDto>>();
+            var papers = await response.Content.ReadJsonAsync<List<PaperDto>>();
             Assert.Equal("Graph Neural Networks", Assert.Single(papers!).Title);
         }
 

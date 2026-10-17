@@ -30,11 +30,11 @@ public class TasksEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         var response = await _client.PostAsJsonAsync("/api/auth/register",
             new RegisterRequest(email, "Test User", "SecurePass123!"));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<AuthResult>();
+        var result = await response.Content.ReadJsonAsync<AuthResult>();
 
         Authenticate(result!.AccessToken);
         var meResponse = await _client.GetAsync("/api/auth/me");
-        var me = await meResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        var me = await meResponse.Content.ReadJsonAsync<Dictionary<string, string>>();
 
         return (result.AccessToken, Guid.Parse(me!["userId"]));
     }
@@ -44,7 +44,7 @@ public class TasksEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         Authenticate(ownerToken);
         var response = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest(name, "desc"));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<ProjectDto>())!;
+        return (await response.Content.ReadJsonAsync<ProjectDto>())!;
     }
 
     private async Task AddMemberAsync(string ownerToken, Guid projectId, Guid userId)
@@ -70,7 +70,7 @@ public class TasksEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         var createResponse = await _client.PostAsJsonAsync($"/api/projects/{project.Id}/tasks",
             new CreateResearchTaskRequest("Read paper", "desc", TaskPriority.High, null, null, assigneeId));
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
-        var task = await createResponse.Content.ReadFromJsonAsync<ResearchTaskDto>();
+        var task = await createResponse.Content.ReadJsonAsync<ResearchTaskDto>();
 
         // A member who is not the assignee is rejected
         Authenticate(otherToken);
@@ -84,7 +84,7 @@ public class TasksEndpointsTests : IClassFixture<CustomWebApplicationFactory>
             new ChangeResearchTaskStatusRequest(ResearchTaskStatus.Done));
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
 
-        var updated = await ok.Content.ReadFromJsonAsync<ResearchTaskDto>();
+        var updated = await ok.Content.ReadJsonAsync<ResearchTaskDto>();
         Assert.Equal(ResearchTaskStatus.Done, updated!.Status);
         Assert.NotNull(updated.CompletedAt);
     }
@@ -116,7 +116,7 @@ public class TasksEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         var paperResponse = await _client.PostAsJsonAsync($"/api/projects/{projectB.Id}/papers",
             new CreatePaperRequest("Paper in B", "Authors", "abstract", null, null, null, null));
         Assert.Equal(HttpStatusCode.Created, paperResponse.StatusCode);
-        var paperInB = await paperResponse.Content.ReadFromJsonAsync<PaperDto>();
+        var paperInB = await paperResponse.Content.ReadJsonAsync<PaperDto>();
 
         var response = await _client.PostAsJsonAsync($"/api/projects/{projectA.Id}/tasks",
             new CreateResearchTaskRequest("Title", "desc", TaskPriority.Low, null, paperInB!.Id, null));

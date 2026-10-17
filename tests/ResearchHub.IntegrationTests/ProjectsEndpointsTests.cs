@@ -22,7 +22,7 @@ namespace ResearchHub.IntegrationTests
             var response = await _client.PostAsJsonAsync("/api/auth/register",
                 new RegisterRequest(email, "Test User", "SecurePass123!"));
 
-            var result = await response.Content.ReadFromJsonAsync<AuthResult>();
+            var result = await response.Content.ReadJsonAsync<AuthResult>();
             return result!.AccessToken;
         }
         [Fact]
@@ -36,7 +36,7 @@ namespace ResearchHub.IntegrationTests
 
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-            var project = await response.Content.ReadFromJsonAsync<ProjectDto>();
+            var project = await response.Content.ReadJsonAsync<ProjectDto>();
             Assert.Single(project!.Members);
         }
         [Fact]
@@ -57,7 +57,7 @@ namespace ResearchHub.IntegrationTests
 
             var createResponse = await _client.PostAsJsonAsync("/api/projects",
                 new CreateProjectRequest("Private Project", "desc"));
-            var project = await createResponse.Content.ReadFromJsonAsync<ProjectDto>();
+            var project = await createResponse.Content.ReadJsonAsync<ProjectDto>();
 
             var outsiderToken = await RegisterAndGetTokenAsync("outsider@example.com");
             _client.DefaultRequestHeaders.Authorization = new("Bearer", outsiderToken);
@@ -86,13 +86,13 @@ namespace ResearchHub.IntegrationTests
             var createResponse = await _client.PostAsJsonAsync("/api/projects",
                 new CreateProjectRequest("Shared Project", "desc"));
             Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
-            var project = await createResponse.Content.ReadFromJsonAsync<ProjectDto>();
+            var project = await createResponse.Content.ReadJsonAsync<ProjectDto>();
 
             // Second user registers; look up their id via /me
             var memberToken = await RegisterAndGetTokenAsync("member1@example.com");
             _client.DefaultRequestHeaders.Authorization = new("Bearer", memberToken);
             var meResponse = await _client.GetAsync("/api/auth/me");
-            var me = await meResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+            var me = await meResponse.Content.ReadJsonAsync<Dictionary<string, string>>();
             var memberId = Guid.Parse(me!["userId"]);
 
             // Owner adds the member (this is the step that was silently failing before)
@@ -153,7 +153,7 @@ namespace ResearchHub.IntegrationTests
             var response = await _client.GetAsync("/api/projects");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-            var projects = await response.Content.ReadFromJsonAsync<List<ProjectSummaryDto>>();
+            var projects = await response.Content.ReadJsonAsync<List<ProjectSummaryDto>>();
             Assert.Equal(2, projects!.Count);
             Assert.All(projects, p => Assert.Equal(ResearchHub.Domain.Enums.ProjectRole.Owner, p.MyRole));
             Assert.DoesNotContain(projects, p => p.Name == "B One");
@@ -167,7 +167,7 @@ namespace ResearchHub.IntegrationTests
             var response = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest("Named Project", "desc"));
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-            var project = await response.Content.ReadFromJsonAsync<ProjectDto>();
+            var project = await response.Content.ReadJsonAsync<ProjectDto>();
             Assert.Equal("Test User", project!.Members.Single().DisplayName);
         }
     }

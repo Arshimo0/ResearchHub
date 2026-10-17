@@ -20,7 +20,7 @@ public class UsersEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         var response = await _client.PostAsJsonAsync("/api/auth/register",
             new RegisterRequest(email, displayName, "SecurePass123!"));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<AuthResult>())!;
+        return (await response.Content.ReadJsonAsync<AuthResult>())!;
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class UsersEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         var response = await _client.GetAsync($"/api/users/lookup?email={email}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var user = await response.Content.ReadFromJsonAsync<UserLookupDto>();
+        var user = await response.Content.ReadJsonAsync<UserLookupDto>();
         Assert.Equal(target.User.Id, user!.Id);
         Assert.Equal("Target Person", user.DisplayName);
     }
@@ -69,7 +69,7 @@ public class UsersEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         var response = await _client.GetAsync("/api/users/me");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var me = await response.Content.ReadFromJsonAsync<UserDto>();
+        var me = await response.Content.ReadJsonAsync<UserDto>();
         Assert.Equal("New Name", me!.DisplayName);
         Assert.Equal("profile1@example.com", me.Email);
     }
