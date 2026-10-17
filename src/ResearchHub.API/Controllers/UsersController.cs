@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResearchHub.Application.Users;
-
 namespace ResearchHub.API.Controllers;
 
 [Authorize]
@@ -23,6 +22,19 @@ public class UsersController : ApiControllerBase
     public async Task<ActionResult<UserLookupDto>> Lookup([FromQuery] string email)
     {
         var result = await _userService.LookupByEmailAsync(email);
+        return Ok(result);
+    }
+    [HttpGet("me")]
+    public async Task<ActionResult<UserDto>> GetMe()
+    {
+        var result = await _userService.GetProfileAsync(CurrentUserId);
+        return Ok(result);
+    }
+
+    [HttpPut("me")]
+    public async Task<ActionResult<UserDto>> UpdateMe(UpdateProfileRequest request)
+    {
+        var result = await _userService.UpdateProfileAsync(CurrentUserId, request);
         return Ok(result);
     }
 }
