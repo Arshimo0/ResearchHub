@@ -166,7 +166,7 @@ See [`docs/api-design.md`](docs/api-design.md) for the full reference.
 dotnet test
 ```
 
-The suite has 134 tests: unit tests for the domain and services (repositories mocked), and integration tests that run the whole HTTP pipeline against a real SQL Server container.
+The suite has 138 tests: unit tests for the domain and services (repositories mocked), and integration tests that run the whole HTTP pipeline against a real SQL Server container.
 
 The integration tests need Docker running. The first run downloads the SQL Server image and each test class starts a container, so allow a few minutes. On some Windows and Docker Desktop setups, container startup can hang; setting `TESTCONTAINERS_RYUK_DISABLED=true` is a known workaround.
 
