@@ -110,7 +110,7 @@ public class ProjectServiceTests
         await Assert.ThrowsAsync<ForbiddenAccessException>(() =>
             _sut.DeleteAsync(project.Id, memberId));
 
-        _projectRepository.Verify(r => r.Remove(It.IsAny<ResearchProject>()), Times.Never);
+        _projectRepository.Verify(r => r.RemoveWithContentsAsync(It.IsAny<ResearchProject>()), Times.Never);
     }
 
     [Fact]
@@ -122,7 +122,8 @@ public class ProjectServiceTests
 
         await _sut.DeleteAsync(project.Id, ownerId);
 
-        _projectRepository.Verify(r => r.Remove(project), Times.Once);
+        _projectRepository.Verify(r => r.RemoveWithContentsAsync(project), Times.Once);
+
     }
 
     [Fact]

@@ -376,6 +376,12 @@ namespace ResearchHub.Infrastructure.Migrations
                         .HasForeignKey("AddedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ResearchHub.Domain.Entities.ResearchProject", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ResearchHub.Domain.Entities.ResearchTask", b =>
@@ -395,6 +401,21 @@ namespace ResearchHub.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("PaperId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ResearchHub.Domain.Entities.ResearchProject", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ResearchHub.Domain.Entities.Tag", b =>
+                {
+                    b.HasOne("ResearchHub.Domain.Entities.ResearchProject", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ResearchPaperTag", b =>

@@ -50,6 +50,11 @@ namespace ResearchHub.Infrastructure.Persistence.Configurations
                 .WithMany()
                 .HasForeignKey(p => p.AddedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+                
+            builder.HasOne<ResearchProject>()
+                .WithMany()
+                .HasForeignKey(p => p.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
