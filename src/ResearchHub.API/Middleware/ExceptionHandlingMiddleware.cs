@@ -1,6 +1,6 @@
 using System.Text.Json;
 using ResearchHub.Application.Common;
-
+using ResearchHub.Domain.Exceptions;
 namespace ResearchHub.API.Middleware;
 
 public class ExceptionHandlingMiddleware
@@ -45,6 +45,8 @@ public class ExceptionHandlingMiddleware
             new(StatusCodes.Status401Unauthorized, "Unauthorized", ex.Message, null),
         ForbiddenAccessException =>
             new(StatusCodes.Status403Forbidden, "Forbidden", ex.Message, null),
+        DomainException =>
+            new(StatusCodes.Status409Conflict, "Conflict", ex.Message, null),
         KeyNotFoundException =>
             new(StatusCodes.Status404NotFound, "Not Found", ex.Message, null),
         InvalidOperationException =>
