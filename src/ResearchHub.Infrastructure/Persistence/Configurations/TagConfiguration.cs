@@ -21,6 +21,11 @@ namespace ResearchHub.Infrastructure.Persistence.Configurations
 
             builder.HasIndex(t => new { t.ProjectId, t.Name })
             .IsUnique();
+
+            builder.HasOne<ResearchProject>()
+                .WithMany()
+                .HasForeignKey(t => t.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

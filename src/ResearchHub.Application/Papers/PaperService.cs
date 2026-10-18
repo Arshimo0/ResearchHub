@@ -192,7 +192,7 @@ namespace ResearchHub.Application.Papers
             paper.AddedByUserId,
             names.Of(paper.AddedByUserId),
             paper.CreatedAt,
-            paper.Tags.Select(t => t.Name).ToList());
+            paper.Tags.Select(t => new TagDto(t.Id, t.Name)).ToList());
     }
 }
     

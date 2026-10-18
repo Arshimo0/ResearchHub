@@ -51,6 +51,11 @@ namespace ResearchHub.Infrastructure.Persistence.Configurations
                 .WithMany()
                 .HasForeignKey(t => t.PaperId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasOne<ResearchProject>()
+                .WithMany()
+                .HasForeignKey(t => t.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

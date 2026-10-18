@@ -88,7 +88,7 @@ namespace ResearchHub.UnitTests.Papers
 
             var result = await _sut.CreateAsync(project.Id, request, userId);
 
-            Assert.Contains("computer-vision", result.Tags);
+            Assert.Contains(result.Tags, t => t.Name == "computer-vision");
             _tagRepository.Verify(r => r.AddAsync(It.IsAny<Tag>()), Times.Once);
         }
 
@@ -107,7 +107,7 @@ namespace ResearchHub.UnitTests.Papers
 
             var result = await _sut.CreateAsync(project.Id, request, userId);
 
-            Assert.Contains("computer-vision", result.Tags);
+            Assert.Contains(result.Tags, t => t.Name == "computer-vision");
             _tagRepository.Verify(r => r.AddAsync(It.IsAny<Tag>()), Times.Never);
         }
         [Fact]

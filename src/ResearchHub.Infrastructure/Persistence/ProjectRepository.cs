@@ -25,8 +25,15 @@ namespace ResearchHub.Infrastructure.Persistence
             _dbContext.ResearchProjects.Add(project);
             return Task.CompletedTask;
         }
-        public void Remove(ResearchProject project)
+        public async Task RemoveWithContentsAsync(ResearchProject project)
         {
+            var tasks = await _dbContext.ResearchTasks.Where(t => t.ProjectId == project.Id).ToListAsync();
+            var papers = await _dbContext.ResearchPapers.Where(p => p.ProjectId == project.Id).ToListAsync();
+            var tags = await _dbContext.Tags.Where(t => t.ProjectId == project.Id).ToListAsync();
+
+            _dbContext.ResearchTasks.RemoveRange(tasks);
+            _dbContext.ResearchPapers.RemoveRange(papers);
+            _dbContext.Tags.RemoveRange(tags);
             _dbContext.ResearchProjects.Remove(project);
         }
         public async Task<IReadOnlyList<ResearchProject>> GetByMemberUserIdAsync(Guid userId) =>

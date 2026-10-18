@@ -153,5 +153,25 @@ namespace ResearchHub.IntegrationTests
             var body = await response.Content.ReadAsStringAsync();
             Assert.Contains("\"query\"", body);
         }
+        [Fact]
+        public async Task RemoveTag_UsingIdFromPaperResponse_RemovesOnlyThatTag()
+        {
+            var token = await RegisterAndGetTokenAsync("tagremove1@example.com");
+            var project = await CreateProjectAsync(token, "Tag Removal");
+
+            _client.DefaultRequestHeaders.Authorization = new("Bearer", token);
+            var created = await _client.PostAsJsonAsync($"/api/projects/{project.Id}/papers",
+                new CreatePaperRequest("Title", "Authors", "abstract", null, null, null, new[] { "vision", "survey" }));
+            Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+            var paper = await created.Content.ReadJsonAsync<PaperDto>();
+
+            var vision = paper!.Tags.Single(t => t.Name == "vision");
+
+            var response = await _client.DeleteAsync($"/api/papers/{paper.Id}/tags/{vision.Id}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var updated = await response.Content.ReadJsonAsync<PaperDto>();
+            Assert.Equal("survey", Assert.Single(updated!.Tags).Name);
+        }
     }
 }

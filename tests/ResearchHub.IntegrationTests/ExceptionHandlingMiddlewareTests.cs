@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using ResearchHub.API.Middleware;
 using ResearchHub.Application.Common;
 using Xunit;
-
+using ResearchHub.Domain.Exceptions;
 namespace ResearchHub.IntegrationTests;
 
 public class ExceptionHandlingMiddlewareTests
@@ -59,5 +59,13 @@ public class ExceptionHandlingMiddlewareTests
 
         Assert.Equal(403, status);
         Assert.Contains("Only a project owner can perform this action.", body);
+    }
+    [Fact]
+    public async Task DomainException_Returns409WithItsMessage()
+    {
+        var (status, body) = await RunAsync(new CannotRemoveLastOwnerException());
+
+        Assert.Equal(409, status);
+        Assert.Contains("at least one owner", body);
     }
 }

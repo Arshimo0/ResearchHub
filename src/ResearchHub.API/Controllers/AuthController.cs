@@ -43,9 +43,9 @@ namespace ResearchHub.API.Controllers
         }
 
         [HttpPost("refresh")]
-        public async Task<ActionResult<AuthResult>> Refresh([FromBody] string refreshToken)
+        public async Task<ActionResult<AuthResult>> Refresh(RefreshRequest request)
         {
-            var result = await _authService.RefreshAsync(refreshToken);
+            var result = await _authService.RefreshAsync(request.RefreshToken);
             return Ok(result);
         }
     }

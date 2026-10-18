@@ -71,7 +71,7 @@ namespace ResearchHub.Application.Projects
 
             EnsureIsOwner(project, currentUserId);
 
-            _projectRepository.Remove(project);
+            await _projectRepository.RemoveWithContentsAsync(project);
             await _unitOfWork.SaveChangesAsync();
         }
         public async Task<ProjectDto> AddMemberAsync(Guid projectId, AddMemberRequest request, Guid currentUserId)

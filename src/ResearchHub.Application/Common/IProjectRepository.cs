@@ -11,6 +11,6 @@ namespace ResearchHub.Application.Common
         Task<IReadOnlyList<ResearchProject>> GetByMemberUserIdAsync(Guid userId);
         Task<ResearchProject?> GetByIdAsync(Guid id);
         Task AddAsync(ResearchProject project);
-        void Remove(ResearchProject project);      
+        Task RemoveWithContentsAsync(ResearchProject project);      
     }
 }
