@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { Outlet } from 'react-router'
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-line bg-surface backdrop-blur-md">
@@ -11,7 +11,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+        <Outlet />
+      </main>
     </div>
   )
 }
