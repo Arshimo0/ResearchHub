@@ -3,8 +3,10 @@ import { request } from '../api/client'
 import type { AuthResult, LoginRequest, RegisterRequest, User } from '../api/types'
 import { AuthContext, type AuthContextValue, type AuthStatus } from './AuthContext'
 import { tokenStore } from './tokenStore'
+import { useQueryClient } from '@tanstack/react-query'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [status, setStatus] = useState<AuthStatus>(() =>
     tokenStore.getRefreshToken() ? 'loading' : 'anonymous',
@@ -31,14 +33,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
   }, [])
-  // If the API client ends the session (the server rejected a refresh),
-  // return to the anonymous state so the route guard sends us to /login.
-  useEffect(() => {
-    return tokenStore.subscribe(() => {
-      setUser(null)
-      setStatus('anonymous')
-    })
-  }, [])
+   // When the session ends, whether by logout or because the server rejected it,
+   // return to the anonymous state and forget every cached server response.
+   useEffect(() => {
+     return tokenStore.subscribe(() => {
+       setUser(null)
+       setStatus('anonymous')
+       queryClient.clear()
+     })
+   }, [queryClient])
 
   const applyAuth = useCallback((auth: AuthResult) => {
     tokenStore.setTokens(auth.accessToken, auth.refreshToken)
@@ -64,12 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyAuth],
   )
 
-  const logout = useCallback(() => {
-    tokenStore.clear()
-    setUser(null)
-    setStatus('anonymous')
-  }, [])
-
+   const logout = useCallback(() => {
+     tokenStore.clear()
+   }, [])
+   
   const value = useMemo<AuthContextValue>(
     () => ({ status, user, login, register, logout }),
     [status, user, login, register, logout],

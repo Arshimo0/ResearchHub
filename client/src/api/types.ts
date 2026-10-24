@@ -1,5 +1,6 @@
 export type PlatformRole = 'User' | 'Admin'
-
+export type ProjectRole = 'Owner' | 'Member'
+export type ProjectStatus = 'Active' | 'Completed' | 'Archived'
 export interface User {
   id: string
   email: string
@@ -31,4 +32,14 @@ export interface ProblemDetails {
   traceId?: string
   detail?: string
   errors?: Record<string, string[]>
+}
+
+export interface ProjectSummary {
+  id: string
+  name: string
+  description: string
+  status: ProjectStatus
+  createdAt: string
+  memberCount: number
+  myRole: ProjectRole
 }
