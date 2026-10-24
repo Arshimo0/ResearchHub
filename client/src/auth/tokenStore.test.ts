@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it , vi } from 'vitest'
 import { tokenStore } from './tokenStore'
 
 describe('tokenStore', () => {
@@ -25,5 +25,17 @@ describe('tokenStore', () => {
 
     expect(tokenStore.getAccessToken()).toBeNull()
     expect(tokenStore.getRefreshToken()).toBeNull()
+  })
+
+  it('notifies subscribers when cleared, until they unsubscribe', () => {
+    const listener = vi.fn()
+    const unsubscribe = tokenStore.subscribe(listener)
+
+    tokenStore.clear()
+    expect(listener).toHaveBeenCalledTimes(1)
+
+    unsubscribe()
+    tokenStore.clear()
+    expect(listener).toHaveBeenCalledTimes(1)
   })
 })

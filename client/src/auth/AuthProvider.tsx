@@ -31,6 +31,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
   }, [])
+  // If the API client ends the session (the server rejected a refresh),
+  // return to the anonymous state so the route guard sends us to /login.
+  useEffect(() => {
+    return tokenStore.subscribe(() => {
+      setUser(null)
+      setStatus('anonymous')
+    })
+  }, [])
 
   const applyAuth = useCallback((auth: AuthResult) => {
     tokenStore.setTokens(auth.accessToken, auth.refreshToken)

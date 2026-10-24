@@ -4,6 +4,8 @@ const REFRESH_TOKEN_KEY = 'researchhub.refreshToken'
 // and is renewed from the refresh token.
 let accessToken: string | null = null
 
+const clearListeners = new Set<() => void>()
+
 export const tokenStore = {
   getAccessToken: () => accessToken,
 
@@ -17,5 +19,14 @@ export const tokenStore = {
   clear() {
     accessToken = null
     localStorage.removeItem(REFRESH_TOKEN_KEY)
+    clearListeners.forEach((listener) => listener())
+  },
+
+  /** Runs whenever the tokens are cleared, by logout or because the server rejected the session. */
+  subscribe(listener: () => void) {
+    clearListeners.add(listener)
+    return () => {
+      clearListeners.delete(listener)
+    }
   },
 }
