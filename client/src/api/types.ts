@@ -43,3 +43,24 @@ export interface ProjectSummary {
   memberCount: number
   myRole: ProjectRole
 }
+
+export interface ProjectMember {
+  userId: string
+  displayName: string
+  role: ProjectRole
+  joinedAt: string
+}
+
+export interface Project {
+  id: string
+  name: string
+  description: string
+  status: ProjectStatus
+  createdAt: string
+  members: ProjectMember[]
+}
+
+export interface CreateProjectRequest {
+  name: string
+  description: string
+}
