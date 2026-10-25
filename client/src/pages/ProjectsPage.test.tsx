@@ -65,4 +65,14 @@ describe('ProjectsPage', () => {
     expect(await screen.findByRole('heading', { name: 'AI Research' })).toBeInTheDocument()
     expect(list).toHaveBeenCalledTimes(2)
   })
+  it('links each project card to its detail page', async () => {
+    vi.spyOn(projectsApi, 'list').mockResolvedValue([summary()])
+
+    renderWithProviders(<ProjectsPage />)
+
+    expect(await screen.findByRole('link', { name: 'AI Research' })).toHaveAttribute(
+      'href',
+      '/projects/p1',
+    )
+  })
 })

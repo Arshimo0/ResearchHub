@@ -5,6 +5,7 @@ import { ProjectsPage } from './pages/ProjectsPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { ProjectDetailPage } from './pages/ProjectDetailPage'
 
 export function AppRoutes() {
   return (
@@ -14,7 +15,8 @@ export function AppRoutes() {
         <Route path="/register" element={<RegisterPage />} />
 
         <Route element={<RequireAuth />}>
-          <Route path="/" element={<ProjectsPage />} />
+            <Route path="/" element={<ProjectsPage />} />
+            <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
