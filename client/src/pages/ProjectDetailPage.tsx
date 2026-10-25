@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, Outlet, useParams } from 'react-router'
 import { ApiError, errorMessage } from '../api/client'
 import { projectKeys, projectsApi } from '../api/projects'
 import type { Project } from '../api/types'
@@ -9,11 +9,12 @@ import { Button } from '../components/Button'
 import { DeleteProjectDialog } from '../components/DeleteProjectDialog'
 import { EditProjectDialog } from '../components/EditProjectDialog'
 import { ErrorPanel } from '../components/ErrorPanel'
-import { MembersSection } from '../components/MembersSection'
 import { MessagePanel } from '../components/MessagePanel'
 import { PageLoading } from '../components/PageLoading'
 import { ProjectStatusBadge } from '../components/ProjectStatusBadge'
+import { TabNav } from '../components/TabNav'
 import { formatDate } from '../lib/format'
+import type { ProjectContext } from './projectContext'
 
 function ProjectDetail({ project, currentUserId }: { project: Project; currentUserId?: string }) {
   const [editing, setEditing] = useState(false)
@@ -21,6 +22,7 @@ function ProjectDetail({ project, currentUserId }: { project: Project; currentUs
 
   // This only decides what to offer. The API makes the real decision.
   const isOwner = project.members.some((m) => m.userId === currentUserId && m.role === 'Owner')
+  const context: ProjectContext = { project, currentUserId, isOwner }
 
   return (
     <>
@@ -49,7 +51,18 @@ function ProjectDetail({ project, currentUserId }: { project: Project; currentUs
         </div>
       </section>
 
-      <MembersSection project={project} currentUserId={currentUserId} isOwner={isOwner} />
+      <div className="mt-6">
+        <TabNav
+          label="Project sections"
+          tabs={[
+            { to: `/projects/${project.id}`, label: 'Papers', end: true },
+            { to: `/projects/${project.id}/members`, label: 'Members' },
+          ]}
+        />
+        <div className="mt-6">
+          <Outlet context={context} />
+        </div>
+      </div>
 
       {isOwner ? (
         <>

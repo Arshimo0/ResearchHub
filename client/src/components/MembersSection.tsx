@@ -36,8 +36,8 @@ export function MembersSection({ project, currentUserId, isOwner }: MembersSecti
   }
 
   return (
-    <section className="mt-6 rounded-card border border-line bg-surface p-6 backdrop-blur-md">
-      <h2 className="text-lg font-semibold tracking-tight">Members ({project.members.length})</h2>
+    <section className="rounded-card border border-line bg-surface p-6 backdrop-blur-md">
+        <h2 className="text-lg font-semibold tracking-tight">Members ({project.members.length})</h2>
 
       {isOwner ? <AddMemberForm projectId={project.id} /> : null}
 
