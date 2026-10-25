@@ -7,6 +7,9 @@ import { request } from '../api/client'
 import type { AuthResult } from '../api/types'
 import { AuthProvider } from './AuthProvider'
 import { tokenStore } from './tokenStore'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createQueryClient } from '../api/queryClient'
+import { projectKeys } from '../api/projects'
 
 const REFRESH_KEY = 'researchhub.refreshToken'
 
@@ -31,14 +34,16 @@ const authResult = (access = 'access-1', refresh = 'refresh-1'): AuthResult => (
 })
 
 type Handler = (init: RequestInit) => Response
-
+const defaultRoutes: Record<string, Handler> = {
+  'GET /api/projects': () => json([]),
+}
 // Answers fake API calls by "METHOD /path". A request nobody expected is
 // recorded and fails the test afterwards, instead of being swallowed as a
 // network error by the client.
 function mockApi(routes: Record<string, Handler>) {
   fetchMock.mockImplementation(async (input: unknown, init: RequestInit = {}) => {
     const key = `${init.method ?? 'GET'} ${new URL(String(input)).pathname}`
-    const handler = routes[key]
+    const handler = routes[key] ?? defaultRoutes[key]
 
     if (!handler) {
       unexpectedRequests.push(key)
@@ -55,13 +60,19 @@ const bearer = (init: RequestInit) =>
 type UserSession = ReturnType<typeof userEvent.setup>
 
 function renderApp(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </MemoryRouter>,
+  const queryClient = createQueryClient()
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
+
+  return { queryClient }
 }
 
 async function logIn(user: UserSession) {
@@ -94,7 +105,7 @@ describe('registration', () => {
     await user.type(screen.getByLabelText('Password'), 'SecurePass123!')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
-    expect(await screen.findByRole('heading', { name: 'Welcome, Ana' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Your projects' })).toBeInTheDocument()
     expect(localStorage.getItem(REFRESH_KEY)).toBe('refresh-1')
 
     const sent = fetchMock.mock.calls[0][1] as RequestInit
@@ -156,7 +167,7 @@ describe('login', () => {
 
     await logIn(user)
 
-    expect(await screen.findByRole('heading', { name: 'Welcome, Ana' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Your projects' })).toBeInTheDocument()
   })
 
   it('logs out and returns to the login page', async () => {
@@ -182,28 +193,44 @@ describe('session', () => {
 
     renderApp('/')
 
-    expect(await screen.findByRole('heading', { name: 'Welcome, Ana' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Your projects' })).toBeInTheDocument()
     expect(localStorage.getItem(REFRESH_KEY)).toBe('refresh-2')
   })
 
   it('returns to the login page when the server rejects the session mid-use', async () => {
+    let sessionRejected = false
     mockApi({
       'POST /api/auth/login': () => json(authResult()),
-      'GET /api/projects': () => unauthorized(),
+      'GET /api/projects': () => (sessionRejected ? unauthorized() : json([])),
       'POST /api/auth/refresh': () => unauthorized(),
     })
     const user = userEvent.setup()
     renderApp('/login')
 
     await logIn(user)
-    expect(await screen.findByRole('heading', { name: 'Welcome, Ana' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Your projects' })).toBeInTheDocument()
 
-    // A request is rejected, the refresh is rejected too, and the client ends the session.
+    sessionRejected = true
     await act(async () => {
       await request('/api/projects').catch(() => undefined)
     })
 
     expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument()
     expect(localStorage.getItem(REFRESH_KEY)).toBeNull()
+  })
+  
+  it('forgets cached server data when the session ends', async () => {
+    mockApi({ 'POST /api/auth/login': () => json(authResult()) })
+    const user = userEvent.setup()
+    const { queryClient } = renderApp('/login')
+
+    await logIn(user)
+    expect(await screen.findByRole('heading', { name: 'Your projects' })).toBeInTheDocument()
+    expect(queryClient.getQueryData(projectKeys.list())).toEqual([])
+
+    await user.click(screen.getByRole('button', { name: 'Log out' }))
+
+    expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument()
+    expect(queryClient.getQueryData(projectKeys.list())).toBeUndefined()
   })
 })

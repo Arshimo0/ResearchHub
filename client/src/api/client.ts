@@ -108,3 +108,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   return (await response.json()) as T
 }
+
+/** A message safe to show a user for any error. */
+export function errorMessage(error: unknown): string {
+  return error instanceof ApiError ? error.message : 'Something went wrong. Please try again.'
+}
