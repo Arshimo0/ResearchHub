@@ -3,6 +3,8 @@ import type { ButtonHTMLAttributes } from 'react'
 const variants = {
   primary: 'bg-accent text-accent-ink hover:bg-accent-strong',
   ghost: 'border border-line text-ink-muted hover:text-ink',
+  danger: 'bg-danger text-canvas hover:bg-danger/85',
+  dangerGhost: 'border border-danger/40 text-danger hover:bg-danger/10',
 }
 
 const sizes = {

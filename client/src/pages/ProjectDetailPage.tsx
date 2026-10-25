@@ -1,17 +1,27 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { ApiError, errorMessage } from '../api/client'
 import { projectKeys, projectsApi } from '../api/projects'
 import type { Project } from '../api/types'
 import { useAuth } from '../auth/useAuth'
-import { Badge } from '../components/Badge'
+import { Button } from '../components/Button'
+import { DeleteProjectDialog } from '../components/DeleteProjectDialog'
+import { EditProjectDialog } from '../components/EditProjectDialog'
 import { ErrorPanel } from '../components/ErrorPanel'
+import { MembersSection } from '../components/MembersSection'
 import { MessagePanel } from '../components/MessagePanel'
 import { PageLoading } from '../components/PageLoading'
 import { ProjectStatusBadge } from '../components/ProjectStatusBadge'
 import { formatDate } from '../lib/format'
 
 function ProjectDetail({ project, currentUserId }: { project: Project; currentUserId?: string }) {
+  const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  // This only decides what to offer. The API makes the real decision.
+  const isOwner = project.members.some((m) => m.userId === currentUserId && m.role === 'Owner')
+
   return (
     <>
       <section className="rounded-card border border-line bg-surface p-6 backdrop-blur-md">
@@ -22,37 +32,31 @@ function ProjectDetail({ project, currentUserId }: { project: Project; currentUs
         <p className="mt-3 whitespace-pre-line text-ink-muted">
           {project.description || 'No description yet.'}
         </p>
-        <p className="mt-4 text-xs text-ink-faint">Created {formatDate(project.createdAt)}</p>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-ink-faint">Created {formatDate(project.createdAt)}</p>
+
+          {isOwner ? (
+            <div className="flex gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
+                Edit project
+              </Button>
+              <Button variant="dangerGhost" size="sm" onClick={() => setDeleting(true)}>
+                Delete project
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </section>
 
-      <section className="mt-6 rounded-card border border-line bg-surface p-6 backdrop-blur-md">
-        <h2 className="text-lg font-semibold tracking-tight">Members ({project.members.length})</h2>
+      <MembersSection project={project} currentUserId={currentUserId} isOwner={isOwner} />
 
-        <ul aria-label="Members" className="mt-4 divide-y divide-line">
-          {project.members.map((member) => (
-            <li key={member.userId} className="flex items-center justify-between gap-4 py-3">
-              <div className="flex items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  className="flex size-9 items-center justify-center rounded-full bg-accent/15 text-sm font-semibold text-accent"
-                >
-                  {member.displayName.trim().charAt(0).toUpperCase() || '?'}
-                </span>
-                <div>
-                  <p className="font-medium">
-                    {member.displayName}
-                    {member.userId === currentUserId ? (
-                      <span className="ml-2 text-xs font-normal text-ink-faint">(you)</span>
-                    ) : null}
-                  </p>
-                  <p className="text-xs text-ink-faint">Joined {formatDate(member.joinedAt)}</p>
-                </div>
-              </div>
-              <Badge tone={member.role === 'Owner' ? 'accent' : 'neutral'}>{member.role}</Badge>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {isOwner ? (
+        <>
+          <EditProjectDialog project={project} open={editing} onClose={() => setEditing(false)} />
+          <DeleteProjectDialog project={project} open={deleting} onClose={() => setDeleting(false)} />
+        </>
+      ) : null}
     </>
   )
 }

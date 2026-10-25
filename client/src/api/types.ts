@@ -64,3 +64,19 @@ export interface CreateProjectRequest {
   name: string
   description: string
 }
+
+export interface UpdateProjectRequest {
+  name: string
+  description: string
+}
+
+export interface AddMemberRequest {
+  userId: string
+  role: ProjectRole
+}
+
+export interface UserLookup {
+  id: string
+  email: string
+  displayName: string
+}
