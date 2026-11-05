@@ -9,6 +9,8 @@ export function PaperCard({ paper }: { paper: Paper }) {
   const published = paper.publicationDate ? formatPublicationDate(paper.publicationDate) : ''
   const source = paper.doiOrUrl?.trim() || null
   const sourceLink = source ? externalLink(source) : null
+  const pdf = paper.pdfReference?.trim() || null
+  const pdfLink = pdf ? externalLink(pdf) : null
 
   return (
     <article
@@ -43,19 +45,35 @@ export function PaperCard({ paper }: { paper: Paper }) {
           Added by {paper.addedByName} on {formatDate(paper.createdAt)}
         </span>
 
-        {sourceLink ? (
-          <a
-            href={sourceLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Open source of ${paper.title}`}
-            className="text-accent hover:text-accent-strong"
-          >
-            Open source ↗
-          </a>
-        ) : source ? (
-          <span>{source}</span>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          {sourceLink ? (
+            <a
+              href={sourceLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open source of ${paper.title}`}
+              className="text-accent hover:text-accent-strong"
+            >
+              Open source ↗
+            </a>
+          ) : source ? (
+            <span>{source}</span>
+          ) : null}
+
+          {pdfLink ? (
+            <a
+              href={pdfLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open PDF of ${paper.title}`}
+              className="text-accent hover:text-accent-strong"
+            >
+              PDF ↗
+            </a>
+          ) : pdf ? (
+            <span>PDF: {pdf}</span>
+          ) : null}
+        </div>
       </div>
     </article>
   )

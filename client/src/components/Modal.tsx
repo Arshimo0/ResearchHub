@@ -32,7 +32,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       onClick={(e) => {
         if (e.target === e.currentTarget && pressStartedOnBackdrop.current) onClose()
       }}
-      className="m-auto w-full max-w-lg rounded-card border border-line bg-surface-raised p-0 text-ink backdrop-blur-xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+      className="m-auto max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-card border border-line bg-surface-raised p-0 text-ink backdrop-blur-xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
       {/* Content exists only while open, so every form starts fresh each time. */}
       {open ? (

@@ -100,3 +100,13 @@ export interface Paper {
   createdAt: string
   tags: Tag[]
 }
+
+export interface CreatePaperRequest {
+  title: string
+  authors: string
+  abstract: string
+  publicationDate: string | null
+  doiOrUrl: string | null
+  pdfReference: string | null
+  tags: string[]
+}

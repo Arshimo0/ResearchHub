@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Paper } from './types'
+import type { CreatePaperRequest, Paper } from './types'
 
 export const paperKeys = {
   all: ['papers'] as const,
@@ -9,4 +9,6 @@ export const paperKeys = {
 export const papersApi = {
   listForProject: (projectId: string) =>
     request<Paper[]>(`/api/projects/${encodeURIComponent(projectId)}/papers`),
+  create: (projectId: string, body: CreatePaperRequest) =>
+    request<Paper>(`/api/projects/${encodeURIComponent(projectId)}/papers`, { method: 'POST', body }),
 }

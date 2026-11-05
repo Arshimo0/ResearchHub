@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Outlet, Route, Routes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -134,5 +134,108 @@ describe('ProjectPapersTab', () => {
     const card = within(await screen.findByRole('article', { name: 'Hostile entry' }))
     expect(card.queryByRole('link')).not.toBeInTheDocument()
     expect(card.getByText('javascript:alert(1)')).toBeInTheDocument()
+  })
+})
+
+describe('PDF references', () => {
+  it('links a PDF address and shows anything else as plain text', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValue([
+      paper({ id: 'a', title: 'With PDF', pdfReference: 'https://example.com/paper.pdf' }),
+      paper({ id: 'b', title: 'Odd PDF', pdfReference: 'javascript:alert(1)' }),
+    ])
+
+    renderTab()
+
+    const good = within(await screen.findByRole('article', { name: 'With PDF' }))
+    expect(good.getByRole('link', { name: 'Open PDF of With PDF' })).toHaveAttribute(
+      'href',
+      'https://example.com/paper.pdf',
+    )
+
+    const odd = within(screen.getByRole('article', { name: 'Odd PDF' }))
+    expect(odd.queryByRole('link', { name: /Open PDF/ })).not.toBeInTheDocument()
+    expect(odd.getByText('PDF: javascript:alert(1)')).toBeInTheDocument()
+  })
+})
+
+async function openAddDialog(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'Add paper' }))
+  return screen.findByRole('dialog', { name: 'Add paper' })
+}
+
+describe('adding a paper', () => {
+  it('saves the paper with normalised tags and shows it in the refreshed list', async () => {
+    const list = vi
+      .spyOn(papersApi, 'listForProject')
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([paper()])
+    const create = vi.spyOn(papersApi, 'create').mockResolvedValue(paper())
+    const user = userEvent.setup()
+
+    renderTab()
+    await screen.findByText('No papers yet')
+
+    const dialog = within(await openAddDialog(user))
+    await user.type(dialog.getByLabelText('Title'), '  Attention Is All You Need ')
+    await user.type(dialog.getByLabelText('Authors'), 'Vaswani, A.')
+    await user.type(dialog.getByLabelText('Publication date'), '2017-06-12')
+    await user.type(dialog.getByLabelText('DOI or URL'), '10.48550/arXiv.1706.03762')
+    // The last tag is never confirmed with Enter. Clicking Save must still keep it.
+    await user.type(dialog.getByLabelText('Tags'), 'Transformers{Enter}NLP')
+    await user.click(dialog.getByRole('button', { name: 'Save paper' }))
+
+    expect(await screen.findByRole('article', { name: 'Attention Is All You Need' })).toBeInTheDocument()
+    expect(create).toHaveBeenCalledWith('p1', {
+      title: 'Attention Is All You Need',
+      authors: 'Vaswani, A.',
+      abstract: '',
+      publicationDate: '2017-06-12',
+      doiOrUrl: '10.48550/arXiv.1706.03762',
+      pdfReference: null,
+      tags: ['transformers', 'nlp'],
+    })
+    expect(list).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(screen.queryByLabelText('Title')).not.toBeInTheDocument())
+  })
+
+  it('shows the API error under the right input and keeps what was typed', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValue([])
+    vi.spyOn(papersApi, 'create').mockRejectedValue(
+      new ApiError(
+        400,
+        { title: 'Validation failed', status: 400, errors: { title: ["'Title' must not be empty."] } },
+        'Validation failed',
+      ),
+    )
+    const user = userEvent.setup()
+
+    renderTab()
+    await screen.findByText('No papers yet')
+
+    const dialog = within(await openAddDialog(user))
+    await user.type(dialog.getByLabelText('Authors'), 'Vaswani, A.')
+    await user.click(dialog.getByRole('button', { name: 'Save paper' }))
+
+    expect(await dialog.findByText("'Title' must not be empty.")).toBeInTheDocument()
+    expect(dialog.getByLabelText('Title')).toHaveAttribute('aria-invalid', 'true')
+    expect(dialog.getByLabelText('Authors')).toHaveValue('Vaswani, A.')
+  })
+
+  it('discards the draft, tags included, when cancelled', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValue([])
+    const user = userEvent.setup()
+
+    renderTab()
+    await screen.findByText('No papers yet')
+
+    let dialog = within(await openAddDialog(user))
+    await user.type(dialog.getByLabelText('Title'), 'Half-finished')
+    await user.type(dialog.getByLabelText('Tags'), 'draft{Enter}')
+    await user.click(dialog.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByLabelText('Title')).not.toBeInTheDocument())
+
+    dialog = within(await openAddDialog(user))
+    expect(dialog.getByLabelText('Title')).toHaveValue('')
+    expect(dialog.queryByRole('button', { name: 'Remove tag draft' })).not.toBeInTheDocument()
   })
 })
