@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from './client'
 import { TagUpdateError, papersApi, savePaperChanges } from './papers'
 import type { Paper, UpdatePaperRequest } from './types'
@@ -93,5 +93,41 @@ describe('savePaperChanges', () => {
     await expect(failure).rejects.toBeInstanceOf(ApiError)
     await expect(failure).rejects.not.toBeInstanceOf(TagUpdateError)
     expect(addTag).not.toHaveBeenCalled()
+  })
+})
+
+describe('listForProject', () => {
+  const fetchMock = vi.fn()
+
+  beforeEach(() => {
+    fetchMock.mockReset()
+    fetchMock.mockImplementation(
+      async () =>
+        new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('requests the whole list when there are no filters', async () => {
+    await papersApi.listForProject('p1')
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe('http://api.test/api/projects/p1/papers')
+  })
+
+  it('sends each active filter as a query parameter', async () => {
+    await papersApi.listForProject('p1', {
+      tag: 'nlp',
+      author: 'van der Berg',
+      from: '2017-01-01',
+      to: '2017-12-31',
+    })
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      'http://api.test/api/projects/p1/papers?tag=nlp&author=van+der+Berg&from=2017-01-01&to=2017-12-31',
+    )
   })
 })

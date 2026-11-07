@@ -116,3 +116,10 @@ export type UpdatePaperRequest = Omit<CreatePaperRequest, 'tags'>
 export interface AddTagRequest {
   name: string
 }
+
+export interface PaperFilter {
+  tag?: string
+  author?: string
+  from?: string
+  to?: string
+}

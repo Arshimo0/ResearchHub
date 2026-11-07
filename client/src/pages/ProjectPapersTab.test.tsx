@@ -37,7 +37,7 @@ const paper = (overrides: Partial<Paper> = {}): Paper => ({
   ...overrides,
 })
 
-function renderTab() {
+function renderTab(route = '/') {
   const context: ProjectContext = { project, currentUserId: 'u1', isOwner: true }
 
   return renderWithProviders(
@@ -46,6 +46,7 @@ function renderTab() {
         <Route path="/" element={<ProjectPapersTab />} />
       </Route>
     </Routes>,
+    { route },
   )
 }
 
@@ -60,7 +61,7 @@ describe('ProjectPapersTab', () => {
     renderTab()
 
     const card = within(await screen.findByRole('article', { name: 'Attention Is All You Need' }))
-    expect(list).toHaveBeenCalledWith('p1')
+    expect(list).toHaveBeenCalledWith('p1', {})
     expect(screen.getByRole('heading', { name: 'Papers (1)' })).toBeInTheDocument()
     expect(card.getByText(/Vaswani, A\./)).toBeInTheDocument()
     expect(card.getByText(/Published .*2017/)).toBeInTheDocument()
@@ -452,5 +453,118 @@ describe('deleting a paper', () => {
 
     expect(await dialog.findByRole('alert')).toHaveTextContent('Request failed (500)')
     expect(screen.getByRole('article', { name: TITLE })).toBeInTheDocument()
+  })
+})
+
+const nlpPaper = () => paper({ id: 'n', title: 'An NLP paper', tags: [{ id: 't1', name: 'nlp' }] })
+const visionPaper = () => paper({ id: 'v', title: 'A vision paper', tags: [{ id: 't2', name: 'vision' }] })
+
+const filterForm = () => within(screen.getByRole('form', { name: 'Filter papers' }))
+
+describe('filtering papers', () => {
+  it('asks the API for the filters in the address, and fills the form from them', async () => {
+    const list = vi.spyOn(papersApi, 'listForProject').mockResolvedValue([])
+
+    renderTab('/?tag=NLP&author=Vaswani&from=2017-01-01&to=2017-12-31')
+
+    expect(await screen.findByRole('heading', { name: 'No papers match these filters' })).toBeInTheDocument()
+    expect(list).toHaveBeenCalledWith('p1', {
+      tag: 'nlp',
+      author: 'Vaswani',
+      from: '2017-01-01',
+      to: '2017-12-31',
+    })
+    expect(filterForm().getByLabelText('Tag')).toHaveValue('nlp')
+    expect(filterForm().getByLabelText('Author')).toHaveValue('Vaswani')
+    expect(filterForm().getByLabelText('Published from')).toHaveValue('2017-01-01')
+    expect(filterForm().getByLabelText('Published to')).toHaveValue('2017-12-31')
+  })
+
+  it('ignores values in the address that are not valid filters', async () => {
+    const list = vi.spyOn(papersApi, 'listForProject').mockResolvedValue([paper()])
+
+    renderTab('/?from=yesterday&to=2017-02-30&tag=%20%20&author=&bogus=1')
+
+    expect(await screen.findByRole('article', { name: TITLE })).toBeInTheDocument()
+    expect(list).toHaveBeenCalledWith('p1', {})
+  })
+
+  it('applies the filters from the form and shows only the matching papers', async () => {
+    const list = vi
+      .spyOn(papersApi, 'listForProject')
+      .mockImplementation(async (_id, filter) =>
+        filter?.tag === 'vision' ? [visionPaper()] : [nlpPaper(), visionPaper()],
+      )
+    const user = userEvent.setup()
+
+    renderTab()
+    expect(await screen.findByRole('article', { name: 'An NLP paper' })).toBeInTheDocument()
+
+    await user.type(filterForm().getByLabelText('Tag'), '  Vision ')
+    await user.click(filterForm().getByRole('button', { name: 'Apply filters' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('article', { name: 'An NLP paper' })).not.toBeInTheDocument(),
+    )
+    expect(screen.getByRole('article', { name: 'A vision paper' })).toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith('p1', { tag: 'vision' })
+  })
+
+  it('explains when nothing matches, and clearing the filters brings the papers back', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockImplementation(async (_id, filter) =>
+      filter?.tag ? [] : [paper()],
+    )
+    const user = userEvent.setup()
+
+    renderTab('/?tag=zzz')
+
+    expect(await screen.findByRole('heading', { name: 'No papers match these filters' })).toBeInTheDocument()
+    expect(screen.queryByText('No papers yet')).not.toBeInTheDocument()
+
+    await user.click(filterForm().getByRole('button', { name: 'Clear filters' }))
+
+    expect(await screen.findByRole('article', { name: TITLE })).toBeInTheDocument()
+    expect(filterForm().getByLabelText('Tag')).toHaveValue('')
+    expect(filterForm().queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()
+  })
+
+  it('refuses an end date before the start date without asking the API', async () => {
+    const list = vi.spyOn(papersApi, 'listForProject').mockResolvedValue([paper()])
+    const user = userEvent.setup()
+
+    renderTab()
+    await screen.findByRole('article', { name: TITLE })
+
+    await user.type(filterForm().getByLabelText('Published from'), '2018-01-01')
+    await user.type(filterForm().getByLabelText('Published to'), '2017-01-01')
+    await user.click(filterForm().getByRole('button', { name: 'Apply filters' }))
+
+    expect(await screen.findByText('The start date must be on or before the end date.')).toBeInTheDocument()
+    expect(filterForm().getByLabelText('Published to')).toHaveAttribute('aria-invalid', 'true')
+    expect(list).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps showing the current list, marked busy, while new results load', async () => {
+    let release: (papers: Paper[]) => void = () => {}
+    const slow = new Promise<Paper[]>((resolve) => {
+      release = resolve
+    })
+    vi.spyOn(papersApi, 'listForProject').mockImplementation((_id, filter) =>
+      filter?.tag ? slow : Promise.resolve([paper()]),
+    )
+    const user = userEvent.setup()
+
+    renderTab()
+    const card = await screen.findByRole('article', { name: TITLE })
+
+    await user.type(filterForm().getByLabelText('Tag'), 'zzz')
+    await user.click(filterForm().getByRole('button', { name: 'Apply filters' }))
+
+    await waitFor(() => expect(card.closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true'))
+    expect(screen.getByRole('article', { name: TITLE })).toBeInTheDocument()
+
+    release([])
+
+    expect(await screen.findByRole('heading', { name: 'No papers match these filters' })).toBeInTheDocument()
   })
 })

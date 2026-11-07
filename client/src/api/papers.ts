@@ -1,16 +1,22 @@
+import { filterToSearchParams } from '../lib/paperFilter'
 import { errorMessage, request } from './client'
-import type { AddTagRequest, CreatePaperRequest, Paper, UpdatePaperRequest } from './types'
+import type { AddTagRequest, CreatePaperRequest, Paper, PaperFilter, UpdatePaperRequest } from './types'
 
 export const paperKeys = {
   all: ['papers'] as const,
-  list: (projectId: string) => [...paperKeys.all, 'list', projectId] as const,
+  list: (projectId: string, filter: PaperFilter = {}) =>
+    [...paperKeys.all, 'list', projectId, filter] as const,
 }
 
 const paperPath = (id: string) => `/api/papers/${encodeURIComponent(id)}`
 
 export const papersApi = {
-  listForProject: (projectId: string) =>
-    request<Paper[]>(`/api/projects/${encodeURIComponent(projectId)}/papers`),
+  listForProject: (projectId: string, filter: PaperFilter = {}) => {
+    const query = filterToSearchParams(filter).toString()
+    return request<Paper[]>(
+      `/api/projects/${encodeURIComponent(projectId)}/papers${query ? `?${query}` : ''}`,
+    )
+  },
   create: (projectId: string, body: CreatePaperRequest) =>
     request<Paper>(`/api/projects/${encodeURIComponent(projectId)}/papers`, { method: 'POST', body }),
   update: (id: string, body: UpdatePaperRequest) => request<Paper>(paperPath(id), { method: 'PUT', body }),
