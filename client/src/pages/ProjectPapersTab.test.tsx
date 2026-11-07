@@ -239,3 +239,218 @@ describe('adding a paper', () => {
     expect(dialog.queryByRole('button', { name: 'Remove tag draft' })).not.toBeInTheDocument()
   })
 })
+const TITLE = 'Attention Is All You Need'
+type UserSession = ReturnType<typeof userEvent.setup>
+
+async function openEditDialog(user: UserSession) {
+  await user.click(await screen.findByRole('button', { name: `Edit ${TITLE}` }))
+  return screen.findByRole('dialog', { name: 'Edit paper' })
+}
+
+async function openDeleteDialog(user: UserSession) {
+  await user.click(await screen.findByRole('button', { name: `Delete ${TITLE}` }))
+  return screen.findByRole('dialog', { name: 'Delete this paper?' })
+}
+
+describe('editing a paper', () => {
+  it('opens with the current values and saves the details', async () => {
+    const list = vi
+      .spyOn(papersApi, 'listForProject')
+      .mockResolvedValueOnce([paper()])
+      .mockResolvedValue([paper({ title: 'Attention Revisited' })])
+    const update = vi.spyOn(papersApi, 'update').mockResolvedValue(paper({ title: 'Attention Revisited' }))
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openEditDialog(user))
+
+    expect(dialog.getByLabelText('Title')).toHaveValue(TITLE)
+    expect(dialog.getByLabelText('Authors')).toHaveValue('Vaswani, A.; Shazeer, N.')
+    expect(dialog.getByLabelText('Publication date')).toHaveValue('2017-06-12')
+    expect(dialog.getByLabelText('DOI or URL')).toHaveValue('10.48550/arXiv.1706.03762')
+    expect(dialog.getByLabelText('PDF link')).toHaveValue('')
+    expect(dialog.getByRole('button', { name: 'Remove tag transformers' })).toBeInTheDocument()
+
+    const title = dialog.getByLabelText('Title')
+    await user.clear(title)
+    await user.type(title, 'Attention Revisited')
+    await user.click(dialog.getByRole('button', { name: 'Save changes' }))
+
+    expect(await screen.findByRole('article', { name: 'Attention Revisited' })).toBeInTheDocument()
+    expect(update).toHaveBeenCalledWith('pa1', {
+      title: 'Attention Revisited',
+      authors: 'Vaswani, A.; Shazeer, N.',
+      abstract: 'We propose the Transformer.',
+      publicationDate: '2017-06-12',
+      doiOrUrl: '10.48550/arXiv.1706.03762',
+      pdfReference: null,
+    })
+    expect(list).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(screen.queryByLabelText('Title')).not.toBeInTheDocument())
+  })
+
+  it('shows the API error under the right input and keeps what was typed', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValue([paper()])
+    vi.spyOn(papersApi, 'update').mockRejectedValue(
+      new ApiError(
+        400,
+        { title: 'Validation failed', status: 400, errors: { title: ["'Title' must not be empty."] } },
+        'Validation failed',
+      ),
+    )
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openEditDialog(user))
+
+    await user.clear(dialog.getByLabelText('Title'))
+    await user.click(dialog.getByRole('button', { name: 'Save changes' }))
+
+    expect(await dialog.findByText("'Title' must not be empty.")).toBeInTheDocument()
+    expect(dialog.getByLabelText('Title')).toHaveAttribute('aria-invalid', 'true')
+    expect(dialog.getByLabelText('Authors')).toHaveValue('Vaswani, A.; Shazeer, N.')
+  })
+
+  it('saves tag changes together with the details, and not before', async () => {
+    const updated = paper({
+      tags: [
+        { id: 't2', name: 'nlp' },
+        { id: 't3', name: 'attention' },
+      ],
+    })
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValueOnce([paper()]).mockResolvedValue([updated])
+    const update = vi.spyOn(papersApi, 'update').mockResolvedValue(paper())
+    const addTag = vi.spyOn(papersApi, 'addTag').mockResolvedValue(updated)
+    const removeTag = vi.spyOn(papersApi, 'removeTag').mockResolvedValue(updated)
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openEditDialog(user))
+
+    await user.click(dialog.getByRole('button', { name: 'Remove tag transformers' }))
+    await user.type(dialog.getByLabelText('Tags'), 'Attention{Enter}')
+
+    expect(addTag).not.toHaveBeenCalled()
+    expect(removeTag).not.toHaveBeenCalled()
+
+    await user.click(dialog.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(screen.queryByLabelText('Title')).not.toBeInTheDocument())
+
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(addTag).toHaveBeenCalledWith('pa1', { name: 'attention' })
+    expect(removeTag).toHaveBeenCalledWith('pa1', 't1')
+
+    const card = within(screen.getByRole('article', { name: TITLE }))
+    expect(card.getByText('attention')).toBeInTheDocument()
+    expect(card.queryByText('transformers')).not.toBeInTheDocument()
+  })
+
+  it('says the details were saved when the tags could not be updated', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValue([paper()])
+    const update = vi.spyOn(papersApi, 'update').mockResolvedValue(paper())
+    vi.spyOn(papersApi, 'addTag').mockRejectedValue(
+      new ApiError(
+        400,
+        { title: 'Validation failed', status: 400, errors: { name: ['Tag name is too long.'] } },
+        'Validation failed',
+      ),
+    )
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openEditDialog(user))
+
+    await user.type(dialog.getByLabelText('Tags'), 'whatever{Enter}')
+    await user.click(dialog.getByRole('button', { name: 'Save changes' }))
+
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Your changes to the details were saved, but the tags could not be updated: Tag name is too long.',
+    )
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(dialog.getByRole('button', { name: 'Remove tag whatever' })).toBeInTheDocument()
+  })
+
+  it('discards every change when cancelled', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValue([paper()])
+    const update = vi.spyOn(papersApi, 'update')
+    const user = userEvent.setup()
+
+    renderTab()
+    let dialog = within(await openEditDialog(user))
+
+    await user.type(dialog.getByLabelText('Title'), ' (draft)')
+    await user.click(dialog.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByLabelText('Title')).not.toBeInTheDocument())
+
+    dialog = within(await openEditDialog(user))
+    expect(dialog.getByLabelText('Title')).toHaveValue(TITLE)
+    expect(update).not.toHaveBeenCalled()
+  })
+})
+
+describe('deleting a paper', () => {
+  it('asks for confirmation, then deletes and refreshes the list', async () => {
+    const list = vi
+      .spyOn(papersApi, 'listForProject')
+      .mockResolvedValueOnce([paper()])
+      .mockResolvedValue([])
+    const remove = vi.spyOn(papersApi, 'remove').mockResolvedValue(undefined)
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openDeleteDialog(user))
+
+    expect(dialog.getByText(TITLE)).toBeInTheDocument()
+    expect(remove).not.toHaveBeenCalled()
+
+    await user.click(dialog.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(await screen.findByText('No papers yet')).toBeInTheDocument()
+    expect(remove).toHaveBeenCalledWith('pa1')
+    expect(list).toHaveBeenCalledTimes(2)
+  })
+
+  it('does nothing when cancelled', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValue([paper()])
+    const remove = vi.spyOn(papersApi, 'remove')
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openDeleteDialog(user))
+    await user.click(dialog.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Delete this paper?' })).not.toBeInTheDocument(),
+    )
+    expect(remove).not.toHaveBeenCalled()
+    expect(screen.getByRole('article', { name: TITLE })).toBeInTheDocument()
+  })
+
+  it('treats a paper someone else already deleted as gone, without an error', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValueOnce([paper()]).mockResolvedValue([])
+    vi.spyOn(papersApi, 'remove').mockRejectedValue(
+      new ApiError(404, { title: 'Not Found', status: 404 }, 'Paper not found.'),
+    )
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openDeleteDialog(user))
+    await user.click(dialog.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(await screen.findByText('No papers yet')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('shows why it failed and keeps the paper', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValue([paper()])
+    vi.spyOn(papersApi, 'remove').mockRejectedValue(new ApiError(500, null, 'Request failed (500)'))
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openDeleteDialog(user))
+    await user.click(dialog.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Request failed (500)')
+    expect(screen.getByRole('article', { name: TITLE })).toBeInTheDocument()
+  })
+})

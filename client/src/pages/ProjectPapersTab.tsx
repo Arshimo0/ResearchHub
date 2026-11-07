@@ -2,7 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { errorMessage } from '../api/client'
 import { paperKeys, papersApi } from '../api/papers'
+import type { Paper } from '../api/types'
 import { Button } from '../components/Button'
+import { DeletePaperDialog } from '../components/DeletePaperDialog'
+import { EditPaperDialog } from '../components/EditPaperDialog'
 import { ErrorPanel } from '../components/ErrorPanel'
 import { NewPaperDialog } from '../components/NewPaperDialog'
 import { PageLoading } from '../components/PageLoading'
@@ -13,6 +16,8 @@ import { useProject } from './projectContext'
 export function ProjectPapersTab() {
   const { project } = useProject()
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<Paper | null>(null)
+  const [deleting, setDeleting] = useState<Paper | null>(null)
 
   const query = useQuery({
     queryKey: paperKeys.list(project.id),
@@ -49,7 +54,11 @@ export function ProjectPapersTab() {
       <ul className="space-y-4">
         {papers.map((paper) => (
           <li key={paper.id}>
-            <PaperCard paper={paper} />
+            <PaperCard
+              paper={paper}
+              onEdit={() => setEditing(paper)}
+              onDelete={() => setDeleting(paper)}
+            />
           </li>
         ))}
       </ul>
@@ -68,6 +77,8 @@ export function ProjectPapersTab() {
       <div className="mt-4">{body}</div>
 
       <NewPaperDialog projectId={project.id} open={adding} onClose={() => setAdding(false)} />
+      <EditPaperDialog paper={editing} onClose={() => setEditing(null)} />
+      <DeletePaperDialog paper={deleting} onClose={() => setDeleting(null)} />
     </section>
   )
 }

@@ -3,30 +3,23 @@ import { useState, type FormEvent } from 'react'
 import { paperKeys, papersApi } from '../api/papers'
 import type { CreatePaperRequest } from '../api/types'
 import { noErrors, toFormErrors, type FormErrors } from '../forms/formErrors'
+import { PAPER_FIELDS, emptyPaperValues, toPaperDetails } from '../forms/paperForm'
 import { Button } from './Button'
 import { FormError } from './FormError'
 import { Modal } from './Modal'
+import { PaperFields } from './PaperFields'
 import { TagInput } from './TagInput'
-import { TextAreaField } from './TextAreaField'
-import { TextField } from './TextField'
-
-const FIELDS = ['title', 'authors', 'abstract', 'publicationDate', 'doiOrUrl', 'pdfReference', 'tags'] as const
 
 function NewPaperForm({ projectId, onDone }: { projectId: string; onDone: () => void }) {
   const queryClient = useQueryClient()
-  const [title, setTitle] = useState('')
-  const [authors, setAuthors] = useState('')
-  const [abstractText, setAbstractText] = useState('')
-  const [publicationDate, setPublicationDate] = useState('')
-  const [doiOrUrl, setDoiOrUrl] = useState('')
-  const [pdfReference, setPdfReference] = useState('')
+  const [values, setValues] = useState(emptyPaperValues)
   const [tags, setTags] = useState<string[]>([])
   const [errors, setErrors] = useState<FormErrors>(noErrors)
 
   const create = useMutation({
     mutationFn: (body: CreatePaperRequest) => papersApi.create(projectId, body),
-    // Mark this project's list stale so it refetches, and wait for it before the dialog closes.
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: paperKeys.list(projectId) }),
+    // Mark every paper query stale, and wait for the visible list to refresh before the dialog closes.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: paperKeys.all }),
   })
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -34,18 +27,10 @@ function NewPaperForm({ projectId, onDone }: { projectId: string; onDone: () => 
     setErrors(noErrors)
 
     try {
-      await create.mutateAsync({
-        title: title.trim(),
-        authors: authors.trim(),
-        abstract: abstractText.trim(),
-        publicationDate: publicationDate || null,
-        doiOrUrl: doiOrUrl.trim() || null,
-        pdfReference: pdfReference.trim() || null,
-        tags,
-      })
+      await create.mutateAsync({ ...toPaperDetails(values), tags })
       onDone()
     } catch (error) {
-      setErrors(toFormErrors(error, FIELDS))
+      setErrors(toFormErrors(error, PAPER_FIELDS))
     }
   }
 
@@ -53,60 +38,10 @@ function NewPaperForm({ projectId, onDone }: { projectId: string; onDone: () => 
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <FormError message={errors.form} />
 
-      <TextField
-        label="Title"
-        name="title"
-        autoComplete="off"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        error={errors.fields.title}
-      />
-      <TextField
-        label="Authors"
-        name="authors"
-        autoComplete="off"
-        hint="Separate names with semicolons."
-        value={authors}
-        onChange={(e) => setAuthors(e.target.value)}
-        error={errors.fields.authors}
-      />
-      <TextAreaField
-        label="Abstract"
-        name="abstract"
-        rows={5}
-        value={abstractText}
-        onChange={(e) => setAbstractText(e.target.value)}
-        error={errors.fields.abstract}
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          label="Publication date"
-          type="date"
-          name="publicationDate"
-          value={publicationDate}
-          onChange={(e) => setPublicationDate(e.target.value)}
-          error={errors.fields.publicationDate}
-        />
-        <TextField
-          label="DOI or URL"
-          name="doiOrUrl"
-          autoComplete="off"
-          hint="A DOI like 10.1000/xyz, or a web address."
-          value={doiOrUrl}
-          onChange={(e) => setDoiOrUrl(e.target.value)}
-          error={errors.fields.doiOrUrl}
-        />
-      </div>
-
-      <TextField
-        label="PDF link"
-        name="pdfReference"
-        autoComplete="off"
-        hint="Optional. Where the PDF can be found."
-        value={pdfReference}
-        onChange={(e) => setPdfReference(e.target.value)}
-        error={errors.fields.pdfReference}
+      <PaperFields
+        values={values}
+        onChange={(patch) => setValues((current) => ({ ...current, ...patch }))}
+        errors={errors.fields}
       />
 
       <TagInput

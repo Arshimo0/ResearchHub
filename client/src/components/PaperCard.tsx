@@ -3,8 +3,14 @@ import type { Paper } from '../api/types'
 import { formatDate, formatPublicationDate } from '../lib/format'
 import { externalLink } from '../lib/links'
 import { Badge } from './Badge'
+import { Button } from './Button'
 
-export function PaperCard({ paper }: { paper: Paper }) {
+interface PaperCardProps {
+  paper: Paper
+  onEdit: () => void
+  onDelete: () => void
+}
+export function PaperCard({ paper, onEdit, onDelete }: PaperCardProps) {
   const titleId = useId()
   const published = paper.publicationDate ? formatPublicationDate(paper.publicationDate) : ''
   const source = paper.doiOrUrl?.trim() || null
@@ -17,9 +23,19 @@ export function PaperCard({ paper }: { paper: Paper }) {
       aria-labelledby={titleId}
       className="rounded-card border border-line bg-surface p-5 backdrop-blur-md"
     >
-      <h3 id={titleId} className="text-lg font-semibold tracking-tight">
-        {paper.title}
-      </h3>
+    <div className="flex items-start justify-between gap-3">
+     <h3 id={titleId} className="text-lg font-semibold tracking-tight">
+       {paper.title}
+     </h3>
+     <div className="flex shrink-0 gap-2">
+       <Button variant="ghost" size="sm" aria-label={`Edit ${paper.title}`} onClick={onEdit}>
+         Edit
+       </Button>
+       <Button variant="dangerGhost" size="sm" aria-label={`Delete ${paper.title}`} onClick={onDelete}>
+         Delete
+       </Button>
+     </div>
+    </div>
 
       <p className="mt-1 text-sm text-ink-muted">
         {paper.authors || 'Unknown authors'}

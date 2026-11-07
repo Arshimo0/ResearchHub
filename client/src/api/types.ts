@@ -110,3 +110,9 @@ export interface CreatePaperRequest {
   pdfReference: string | null
   tags: string[]
 }
+
+export type UpdatePaperRequest = Omit<CreatePaperRequest, 'tags'>
+
+export interface AddTagRequest {
+  name: string
+}
