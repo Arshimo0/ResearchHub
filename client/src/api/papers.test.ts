@@ -131,3 +131,33 @@ describe('listForProject', () => {
     )
   })
 })
+describe('search', () => {
+  const fetchMock = vi.fn()
+
+  beforeEach(() => {
+    fetchMock.mockReset()
+    fetchMock.mockImplementation(
+      async () =>
+        new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sends the query, URL-encoded', async () => {
+    await papersApi.search('attention is')
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe('http://api.test/api/papers/search?query=attention%20is')
+  })
+
+  it('keeps special characters inside the query value', async () => {
+    await papersApi.search('c++ & "x"')
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      'http://api.test/api/papers/search?query=c%2B%2B%20%26%20%22x%22',
+    )
+  })
+})

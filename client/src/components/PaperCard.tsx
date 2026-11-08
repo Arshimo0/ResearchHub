@@ -7,9 +7,10 @@ import { Button } from './Button'
 
 interface PaperCardProps {
   paper: Paper
-  onEdit: () => void
-  onDelete: () => void
+  onEdit?: () => void
+  onDelete?: () => void
 }
+
 export function PaperCard({ paper, onEdit, onDelete }: PaperCardProps) {
   const titleId = useId()
   const published = paper.publicationDate ? formatPublicationDate(paper.publicationDate) : ''
@@ -27,14 +28,20 @@ export function PaperCard({ paper, onEdit, onDelete }: PaperCardProps) {
      <h3 id={titleId} className="text-lg font-semibold tracking-tight">
        {paper.title}
      </h3>
-     <div className="flex shrink-0 gap-2">
-       <Button variant="ghost" size="sm" aria-label={`Edit ${paper.title}`} onClick={onEdit}>
-         Edit
-       </Button>
-       <Button variant="dangerGhost" size="sm" aria-label={`Delete ${paper.title}`} onClick={onDelete}>
-         Delete
-       </Button>
-     </div>
+        {onEdit || onDelete ? (
+          <div className="flex shrink-0 gap-2">
+            {onEdit ? (
+              <Button variant="ghost" size="sm" aria-label={`Edit ${paper.title}`} onClick={onEdit}>
+                Edit
+              </Button>
+            ) : null}
+            {onDelete ? (
+              <Button variant="dangerGhost" size="sm" aria-label={`Delete ${paper.title}`} onClick={onDelete}>
+                Delete
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
     </div>
 
       <p className="mt-1 text-sm text-ink-muted">

@@ -181,6 +181,17 @@ describe('login', () => {
     expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument()
     expect(localStorage.getItem(REFRESH_KEY)).toBeNull()
   })
+  it('offers the search box only to signed-in users', async () => {
+    mockApi({ 'POST /api/auth/login': () => json(authResult()) })
+    const user = userEvent.setup()
+    renderApp('/login')
+
+    expect(screen.queryByRole('search')).not.toBeInTheDocument()
+
+    await logIn(user)
+
+    expect(await screen.findByRole('search')).toBeInTheDocument()
+  })
 })
 
 describe('session', () => {
