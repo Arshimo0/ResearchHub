@@ -133,8 +133,18 @@ describe('ProjectPapersTab', () => {
     renderTab()
 
     const card = within(await screen.findByRole('article', { name: 'Hostile entry' }))
-    expect(card.queryByRole('link')).not.toBeInTheDocument()
+    expect(card.queryByRole('link', { name: /Open source/ })).not.toBeInTheDocument()
     expect(card.getByText('javascript:alert(1)')).toBeInTheDocument()
+  })
+  it('links each paper title to its detail page', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValue([paper()])
+
+    renderTab()
+
+    expect(await screen.findByRole('link', { name: 'Attention Is All You Need' })).toHaveAttribute(
+      'href',
+      '/papers/pa1',
+    )
   })
 })
 

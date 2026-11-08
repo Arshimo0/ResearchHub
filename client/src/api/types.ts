@@ -123,3 +123,17 @@ export interface PaperFilter {
   from?: string
   to?: string
 }
+
+export interface Note {
+  id: string
+  paperId: string
+  authorId: string
+  authorName: string
+  content: string
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface CreateNoteRequest {
+  content: string
+}

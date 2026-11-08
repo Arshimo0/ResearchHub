@@ -9,6 +9,7 @@ import { ProjectDetailPage } from './pages/ProjectDetailPage'
 import { ProjectMembersTab } from './pages/ProjectMembersTab'
 import { ProjectPapersTab } from './pages/ProjectPapersTab'
 import { SearchPage } from './pages/SearchPage'
+import { PaperDetailPage } from './pages/PaperDetailPage'
 
 export function AppRoutes() {
   return (
@@ -20,6 +21,7 @@ export function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route path="/" element={<ProjectsPage />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/papers/:paperId" element={<PaperDetailPage />} />
         <Route path="/projects/:projectId" element={<ProjectDetailPage />}>
           <Route index element={<ProjectPapersTab />} />
           <Route path="members" element={<ProjectMembersTab />} />
