@@ -8,6 +8,8 @@ import { projectsApi } from '../api/projects'
 import type { Project, User } from '../api/types'
 import { renderWithProviders } from '../test/renderWithProviders'
 import { ProjectDetailPage } from './ProjectDetailPage'
+import { ProjectMembersTab } from './ProjectMembersTab'
+import { ProjectPapersTab } from './ProjectPapersTab'
 
 const ana: User = { id: 'u1', email: 'ana@example.com', displayName: 'Ana', role: 'User' }
 
@@ -23,16 +25,20 @@ const project = (): Project => ({
   ],
 })
 
-function renderPage(user: User = ana) {
+const MEMBERS = '/projects/p1/members'
+
+function renderPage(user: User = ana, route = '/projects/p1') {
   return renderWithProviders(
     <Routes>
-      <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+      <Route path="/projects/:projectId" element={<ProjectDetailPage />}>
+        <Route index element={<ProjectPapersTab />} />
+        <Route path="members" element={<ProjectMembersTab />} />
+      </Route>
       <Route path="/" element={<p>Projects home</p>} />
     </Routes>,
-    { route: '/projects/p1', user },
+    { route, user },
   )
 }
-
 afterEach(() => {
   vi.restoreAllMocks()
 })
@@ -41,7 +47,7 @@ describe('ProjectDetailPage', () => {
   it('shows the project and marks the current user in the member list', async () => {
     const get = vi.spyOn(projectsApi, 'get').mockResolvedValue(project())
 
-    renderPage()
+    renderPage(ana, MEMBERS)
 
     expect(await screen.findByRole('heading', { name: 'AI Research' })).toBeInTheDocument()
     expect(get).toHaveBeenCalledWith('p1')
@@ -103,7 +109,7 @@ describe('owner actions', () => {
   it('offers management actions to owners, with no remove button on their own row', async () => {
     vi.spyOn(projectsApi, 'get').mockResolvedValue(project())
 
-    renderPage()
+    renderPage(ana, MEMBERS)
 
     await screen.findByRole('heading', { name: 'AI Research' })
     expect(screen.getByRole('button', { name: 'Edit project' })).toBeInTheDocument()
@@ -116,7 +122,7 @@ describe('owner actions', () => {
   it('offers plain members nothing to manage', async () => {
     vi.spyOn(projectsApi, 'get').mockResolvedValue(project())
 
-    renderPage(sam)
+    renderPage(sam, MEMBERS)
 
     await screen.findByRole('heading', { name: 'AI Research' })
     expect(screen.queryByRole('button', { name: 'Edit project' })).not.toBeInTheDocument()
@@ -169,7 +175,7 @@ describe('owner actions', () => {
     const addMember = vi.spyOn(projectsApi, 'addMember').mockResolvedValue(withKim)
     const user = userEvent.setup()
 
-    renderPage()
+    renderPage(ana, MEMBERS)
     await screen.findByRole('heading', { name: 'AI Research' })
 
     await user.type(screen.getByLabelText('Add a member by email'), 'kim@example.com')
@@ -190,7 +196,7 @@ describe('owner actions', () => {
     const addMember = vi.spyOn(projectsApi, 'addMember')
     const user = userEvent.setup()
 
-    renderPage()
+    renderPage(ana, MEMBERS)
     await screen.findByRole('heading', { name: 'AI Research' })
 
     await user.type(screen.getByLabelText('Add a member by email'), 'nobody@example.com')
@@ -208,7 +214,7 @@ describe('owner actions', () => {
     const removeMember = vi.spyOn(projectsApi, 'removeMember').mockResolvedValue(withoutSam)
     const user = userEvent.setup()
 
-    renderPage()
+    renderPage(ana, MEMBERS)
     await screen.findByRole('heading', { name: 'AI Research' })
 
     await user.click(screen.getByRole('button', { name: 'Remove Sam' }))
@@ -225,7 +231,7 @@ describe('owner actions', () => {
     )
     const user = userEvent.setup()
 
-    renderPage()
+    renderPage(ana, MEMBERS)
     await screen.findByRole('heading', { name: 'AI Research' })
 
     await user.click(screen.getByRole('button', { name: 'Remove Sam' }))
@@ -270,5 +276,35 @@ describe('owner actions', () => {
     )
     expect(remove).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { name: 'AI Research' })).toBeInTheDocument()
+  })
+})
+
+describe('project tabs', () => {
+  it('opens on Papers and switches to Members without refetching the project', async () => {
+    const get = vi.spyOn(projectsApi, 'get').mockResolvedValue(project())
+    const user = userEvent.setup()
+
+    renderPage()
+    await screen.findByRole('heading', { name: 'AI Research' })
+
+    const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }))
+    expect(tabs.getByRole('link', { name: 'Papers' })).toHaveAttribute('aria-current', 'page')
+    expect(tabs.getByRole('link', { name: 'Members' })).not.toHaveAttribute('aria-current')
+    expect(screen.queryByRole('list', { name: 'Members' })).not.toBeInTheDocument()
+
+    await user.click(tabs.getByRole('link', { name: 'Members' }))
+
+    expect(await screen.findByRole('heading', { name: 'Members (2)' })).toBeInTheDocument()
+    expect(tabs.getByRole('link', { name: 'Members' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('heading', { name: 'AI Research' })).toBeInTheDocument()
+    expect(get).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens the Members tab directly from its address', async () => {
+    vi.spyOn(projectsApi, 'get').mockResolvedValue(project())
+
+    renderPage(ana, MEMBERS)
+
+    expect(await screen.findByRole('heading', { name: 'Members (2)' })).toBeInTheDocument()
   })
 })

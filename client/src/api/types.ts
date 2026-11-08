@@ -80,3 +80,46 @@ export interface UserLookup {
   email: string
   displayName: string
 }
+
+export interface Tag {
+  id: string
+  name: string
+}
+
+export interface Paper {
+  id: string
+  projectId: string
+  title: string
+  authors: string
+  abstract: string
+  publicationDate: string | null
+  doiOrUrl: string | null
+  pdfReference: string | null
+  addedByUserId: string
+  addedByName: string
+  createdAt: string
+  tags: Tag[]
+}
+
+export interface CreatePaperRequest {
+  title: string
+  authors: string
+  abstract: string
+  publicationDate: string | null
+  doiOrUrl: string | null
+  pdfReference: string | null
+  tags: string[]
+}
+
+export type UpdatePaperRequest = Omit<CreatePaperRequest, 'tags'>
+
+export interface AddTagRequest {
+  name: string
+}
+
+export interface PaperFilter {
+  tag?: string
+  author?: string
+  from?: string
+  to?: string
+}

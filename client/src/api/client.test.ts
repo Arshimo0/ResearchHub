@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { tokenStore } from '../auth/tokenStore'
-import { ApiError, request } from './client'
+import { ApiError, errorMessage, request } from './client'
 import type { AuthResult } from './types'
 
 const fetchMock = vi.fn()
@@ -238,5 +238,27 @@ describe('session refresh', () => {
     expect(error.status).toBe(401)
     expect(error.message).toBe('Invalid email or password.')
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('errorMessage', () => {
+  it('prefers the first specific field message', () => {
+    const error = new ApiError(
+      400,
+      { title: 'Validation failed', status: 400, errors: { name: ['Tag name is too long.'] } },
+      'Validation failed',
+    )
+
+    expect(errorMessage(error)).toBe('Tag name is too long.')
+  })
+
+  it('uses the error message when there are no field details', () => {
+    expect(errorMessage(new ApiError(409, null, 'A project must always have at least one owner.'))).toBe(
+      'A project must always have at least one owner.',
+    )
+  })
+
+  it('does not reveal the details of anything that is not an ApiError', () => {
+    expect(errorMessage(new Error('secret internals'))).toBe('Something went wrong. Please try again.')
   })
 })

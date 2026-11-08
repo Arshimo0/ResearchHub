@@ -109,7 +109,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   return (await response.json()) as T
 }
 
-/** A message safe to show a user for any error. */
+/** A message safe to show a user for any error, preferring the first specific field message. */
 export function errorMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : 'Something went wrong. Please try again.'
+  if (!(error instanceof ApiError)) return 'Something went wrong. Please try again.'
+
+  const firstFieldMessage = Object.values(error.fieldErrors).flat()[0]
+  return firstFieldMessage ?? error.message
 }
