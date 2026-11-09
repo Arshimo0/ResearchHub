@@ -2,9 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { errorMessage } from '../api/client'
 import { noteKeys, notesApi } from '../api/notes'
+import type { Note } from '../api/types'
 import { noErrors, toFormErrors, type FormErrors } from '../forms/formErrors'
 import { formatDate } from '../lib/format'
+import { snippet } from '../lib/text'
 import { Button } from './Button'
+import { DeleteNoteDialog } from './DeleteNoteDialog'
+import { EditNoteDialog } from './EditNoteDialog'
 import { ErrorPanel } from './ErrorPanel'
 import { FormError } from './FormError'
 import { PageLoading } from './PageLoading'
@@ -61,6 +65,9 @@ interface NotesSectionProps {
 }
 
 export function NotesSection({ paperId, currentUserId }: NotesSectionProps) {
+  const [editing, setEditing] = useState<Note | null>(null)
+  const [deleting, setDeleting] = useState<Note | null>(null)
+
   const query = useQuery({
     queryKey: noteKeys.list(paperId),
     queryFn: () => notesApi.list(paperId),
@@ -80,27 +87,58 @@ export function NotesSection({ paperId, currentUserId }: NotesSectionProps) {
   } else if (query.data.length === 0) {
     body = <p className="text-sm text-ink-muted">No notes yet. Be the first to add one.</p>
   } else {
+    const someoneElses = query.data.some((note) => note.authorId !== currentUserId)
+
     // The API returns notes oldest first, in the order they were written, so the order is kept.
     body = (
-      <ul aria-label="Notes" className="space-y-3">
-        {query.data.map((note) => (
-          <li key={note.id} className="rounded-control border border-line bg-surface-raised p-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <p className="font-medium">
-                {note.authorName}
-                {note.authorId === currentUserId ? (
-                  <span className="ml-2 text-xs font-normal text-ink-faint">(you)</span>
-                ) : null}
-              </p>
-              <p className="text-xs text-ink-faint">
-                {formatDate(note.createdAt)}
-                {note.updatedAt ? ` · Edited ${formatDate(note.updatedAt)}` : ''}
-              </p>
-            </div>
-            <p className="mt-2 whitespace-pre-line text-ink-muted">{note.content}</p>
-          </li>
-        ))}
-      </ul>
+      <>
+        <ul aria-label="Notes" className="space-y-3">
+          {query.data.map((note) => (
+            <li key={note.id} className="rounded-control border border-line bg-surface-raised p-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <p className="font-medium">
+                  {note.authorName}
+                  {note.authorId === currentUserId ? (
+                    <span className="ml-2 text-xs font-normal text-ink-faint">(you)</span>
+                  ) : null}
+                </p>
+                <p className="text-xs text-ink-faint">
+                  {formatDate(note.createdAt)}
+                  {note.updatedAt ? ` · Edited ${formatDate(note.updatedAt)}` : ''}
+                </p>
+              </div>
+
+              <p className="mt-2 whitespace-pre-line text-ink-muted">{note.content}</p>
+
+              {/* Only the author may change a note, and the API enforces it. Everyone else gets no buttons. */}
+              {note.authorId === currentUserId ? (
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Edit your note: ${snippet(note.content)}`}
+                    onClick={() => setEditing(note)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="dangerGhost"
+                    size="sm"
+                    aria-label={`Delete your note: ${snippet(note.content)}`}
+                    onClick={() => setDeleting(note)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+
+        {someoneElses ? (
+          <p className="mt-3 text-xs text-ink-faint">Only a note's author can edit or delete it.</p>
+        ) : null}
+      </>
     )
   }
 
@@ -115,6 +153,9 @@ export function NotesSection({ paperId, currentUserId }: NotesSectionProps) {
       <div className="mt-6">
         <AddNoteForm paperId={paperId} />
       </div>
+
+      <EditNoteDialog note={editing} onClose={() => setEditing(null)} />
+      <DeleteNoteDialog note={deleting} onClose={() => setDeleting(null)} />
     </section>
   )
 }

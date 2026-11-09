@@ -137,3 +137,7 @@ export interface Note {
 export interface CreateNoteRequest {
   content: string
 }
+
+export interface UpdateNoteRequest {
+  content: string
+}
