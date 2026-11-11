@@ -141,3 +141,23 @@ export interface CreateNoteRequest {
 export interface UpdateNoteRequest {
   content: string
 }
+
+export type ResearchTaskStatus = 'ToDo' | 'InProgress' | 'Done'
+export type TaskPriority = 'Low' | 'Medium' | 'High'
+
+export interface ResearchTask {
+  id: string
+  projectId: string
+  paperId: string | null
+  title: string
+  description: string
+  status: ResearchTaskStatus
+  priority: TaskPriority
+  deadline: string | null
+  assignedToUserId: string | null
+  assignedToName: string | null
+  createdByUserId: string
+  createdByName: string
+  createdAt: string
+  completedAt: string | null
+}

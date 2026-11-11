@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatPublicationDate } from './format'
+import { formatCalendarDate, formatDate, formatPublicationDate } from './format'
 
 describe('formatDate', () => {
   it('treats a timestamp without a zone as UTC, as the API sends them after a database read', () => {
@@ -23,5 +23,16 @@ describe('formatPublicationDate', () => {
 
   it('returns an empty string for a value that is not a date', () => {
     expect(formatPublicationDate('soon')).toBe('')
+  })
+})
+
+describe('formatCalendarDate', () => {
+  it('shows a deadline as the date written, whatever the viewer’s time zone', () => {
+    expect(formatCalendarDate('2026-10-20T00:00:00')).toBe(formatCalendarDate('2026-10-20T00:00:00Z'))
+    expect(formatCalendarDate('2026-10-20T00:00:00')).toContain('20')
+  })
+
+  it('is the formatter publication dates use too', () => {
+    expect(formatPublicationDate('2017-06-12T00:00:00')).toBe(formatCalendarDate('2017-06-12T00:00:00'))
   })
 })
