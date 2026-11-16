@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import type { ResearchTask, TaskPriority } from '../api/types'
 import { formatCalendarDate, formatDate } from '../lib/format'
@@ -11,7 +11,7 @@ const priorityTone = {
   High: 'danger',
 } as const satisfies Record<TaskPriority, 'neutral' | 'warning' | 'danger'>
 
-export function TaskCard({ task }: { task: ResearchTask }) {
+export function TaskCard({ task, children }: { task: ResearchTask; children?: ReactNode }) {
   const titleId = useId()
   const overdue = isOverdue(task.deadline, task.status)
   const deadline = task.deadline ? formatCalendarDate(task.deadline) : ''
@@ -53,6 +53,7 @@ export function TaskCard({ task }: { task: ResearchTask }) {
         {`Created by ${task.createdByName} on ${formatDate(task.createdAt)}`}
         {task.status === 'Done' && task.completedAt ? ` · Completed ${formatDate(task.completedAt)}` : ''}
       </p>
+         {children ? <div className="mt-4 border-t border-line pt-3">{children}</div> : null}
     </article>
   )
 }

@@ -43,3 +43,21 @@ export function isOverdue(
   // yyyy-mm-dd strings sort the same way the dates do.
   return match[1] < localDay(today)
 }
+
+/** Who may change a task's status. The API enforces this. The UI only decides what to offer. */
+export function canChangeStatus(task: ResearchTask, userId: string | undefined, isOwner: boolean): boolean {
+  return isOwner || (userId !== undefined && task.assignedToUserId === userId)
+}
+
+/** The status changes offered on a card. The API allows any transition, but a few buttons read better. */
+export const statusMoves: Record<ResearchTaskStatus, { label: string; to: ResearchTaskStatus }[]> = {
+  ToDo: [
+    { label: 'Start', to: 'InProgress' },
+    { label: 'Mark done', to: 'Done' },
+  ],
+  InProgress: [
+    { label: 'Mark done', to: 'Done' },
+    { label: 'Back to To do', to: 'ToDo' },
+  ],
+  Done: [{ label: 'Reopen', to: 'InProgress' }],
+}

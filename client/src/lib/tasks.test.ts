@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ResearchTask } from '../api/types'
-import { groupByStatus, isOverdue } from './tasks'
+import { canChangeStatus, groupByStatus, isOverdue } from './tasks'
 
 // Months in `new Date(...)` count from 0, so 9 means October. These are local dates.
 const oct21Noon = new Date(2026, 9, 21, 12, 0)
@@ -54,5 +54,25 @@ describe('groupByStatus', () => {
     expect(groups.ToDo.map((t) => t.id)).toEqual(['b', 'd'])
     expect(groups.InProgress.map((t) => t.id)).toEqual(['c'])
     expect(groups.Done.map((t) => t.id)).toEqual(['a'])
+  })
+})
+
+describe('canChangeStatus', () => {
+  const assigned: ResearchTask = { ...task('a', 'ToDo'), assignedToUserId: 'u2' }
+  const unassigned = task('b', 'ToDo')
+
+  it('lets an owner change any task, assigned or not', () => {
+    expect(canChangeStatus(assigned, 'u1', true)).toBe(true)
+    expect(canChangeStatus(unassigned, 'u1', true)).toBe(true)
+  })
+
+  it('lets the assignee change their own task', () => {
+    expect(canChangeStatus(assigned, 'u2', false)).toBe(true)
+  })
+
+  it('does not let anyone else change a task, and only an owner can change an unassigned one', () => {
+    expect(canChangeStatus(assigned, 'u3', false)).toBe(false)
+    expect(canChangeStatus(unassigned, 'u2', false)).toBe(false)
+    expect(canChangeStatus(assigned, undefined, false)).toBe(false)
   })
 })

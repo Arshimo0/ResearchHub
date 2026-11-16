@@ -27,4 +27,31 @@ describe('tasksApi', () => {
 
     expect(String(fetchMock.mock.calls[0][0])).toBe('http://api.test/api/projects/a%2Fb/tasks')
   })
+
+  it('creates a task with POST and a JSON body', async () => {
+    const body = {
+      title: 'Draft outline',
+      description: '',
+      priority: 'High' as const,
+      deadline: '2999-12-31',
+      paperId: null,
+      assignedToUserId: 'u2',
+    }
+
+    await tasksApi.create('p1', body)
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(String(url)).toBe('http://api.test/api/projects/p1/tasks')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe(JSON.stringify(body))
+  })
+
+  it('changes a status with PATCH', async () => {
+    await tasksApi.changeStatus('t1', 'Done')
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(String(url)).toBe('http://api.test/api/tasks/t1/status')
+    expect(init.method).toBe('PATCH')
+    expect(init.body).toBe(JSON.stringify({ status: 'Done' }))
+  })
 })

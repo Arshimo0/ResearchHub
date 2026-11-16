@@ -161,3 +161,15 @@ export interface ResearchTask {
   createdAt: string
   completedAt: string | null
 }
+
+export interface UpdateResearchTaskRequest {
+  title: string
+  description: string
+  priority: TaskPriority
+  deadline: string | null
+}
+
+export interface CreateResearchTaskRequest extends UpdateResearchTaskRequest {
+  paperId: string | null
+  assignedToUserId: string | null
+}
