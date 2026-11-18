@@ -115,4 +115,41 @@ describe('tasksApi', () => {
     await expect(failure).rejects.toBeInstanceOf(ContractError)
     await expect(failure).rejects.toThrow('did not send a list of tasks')
   })
+
+  it('updates a task with PUT and a JSON body', async () => {
+    const body = { title: 'Revised', description: 'Details', priority: 'Low' as const, deadline: null }
+
+    await tasksApi.update('t1', body)
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(String(url)).toBe('http://api.test/api/tasks/t1')
+    expect(init.method).toBe('PUT')
+    expect(init.body).toBe(JSON.stringify(body))
+  })
+
+  it('assigns a task with PUT to its assignee address', async () => {
+    await tasksApi.assign('t1', 'u2')
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(String(url)).toBe('http://api.test/api/tasks/t1/assignee')
+    expect(init.method).toBe('PUT')
+    expect(init.body).toBe(JSON.stringify({ userId: 'u2' }))
+  })
+
+  it('sends a null user id to clear the assignee', async () => {
+    await tasksApi.assign('t1', null)
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit
+    expect(init.body).toBe(JSON.stringify({ userId: null }))
+  })
+
+  it('deletes a task with DELETE, encoding the id', async () => {
+    fetchMock.mockImplementationOnce(async () => new Response(null, { status: 204 }))
+
+    await tasksApi.remove('a/b')
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(String(url)).toBe('http://api.test/api/tasks/a%2Fb')
+    expect(init.method).toBe('DELETE')
+  })
 })

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Outlet, Route, Routes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -431,5 +431,347 @@ describe('changing a task status', () => {
     await user.click(await screen.findByRole('button', { name: 'Reopen: Read the paper' }))
 
     await waitFor(() => expect(change).toHaveBeenCalledWith('t1', 'InProgress'))
+  })
+})
+
+const MANAGE_HINT = "Only a task's creator or a project owner can edit, assign or delete it."
+const NAME = 'Read the paper'
+
+async function openEditTask(user: UserSession) {
+  await user.click(await screen.findByRole('button', { name: `Edit task: ${NAME}` }))
+  return screen.findByRole('dialog', { name: 'Edit task' })
+}
+
+async function openAssign(user: UserSession) {
+  await user.click(await screen.findByRole('button', { name: `Assign task: ${NAME}` }))
+  return screen.findByRole('dialog', { name: 'Assign task' })
+}
+
+async function openDeleteTask(user: UserSession) {
+  await user.click(await screen.findByRole('button', { name: `Delete task: ${NAME}` }))
+  return screen.findByRole('dialog', { name: 'Delete this task?' })
+}
+
+describe('who can manage a task', () => {
+  it('offers edit, assign and delete only on tasks the user created, and explains the rest', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([
+      task({ id: 'a', title: 'Made by Sam', createdByUserId: 'u2', createdByName: 'Sam' }),
+      task({ id: 'b', title: 'Made by Ana' }),
+    ])
+
+    renderTab({ currentUserId: 'u2', isOwner: false })
+
+    expect(await screen.findByRole('button', { name: 'Edit task: Made by Sam' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Assign task: Made by Sam' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete task: Made by Sam' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /task: Made by Ana$/ })).not.toBeInTheDocument()
+    expect(screen.getByText(MANAGE_HINT)).toBeInTheDocument()
+  })
+
+  it('offers an owner every task, with no explanation', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([
+      task({ createdByUserId: 'u2', createdByName: 'Sam' }),
+    ])
+
+    renderTab()
+
+    expect(await screen.findByRole('button', { name: `Edit task: ${NAME}` })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `Assign task: ${NAME}` })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `Delete task: ${NAME}` })).toBeInTheDocument()
+    expect(screen.queryByText(MANAGE_HINT)).not.toBeInTheDocument()
+  })
+
+  it('lets an assignee who did not create the task change its status, but not manage it', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([
+      task({ assignedToUserId: 'u2', assignedToName: 'Sam' }),
+    ])
+
+    renderTab({ currentUserId: 'u2', isOwner: false })
+
+    expect(await screen.findByRole('button', { name: `Start: ${NAME}` })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: `Edit task: ${NAME}` })).not.toBeInTheDocument()
+    expect(screen.getByText(MANAGE_HINT)).toBeInTheDocument()
+    expect(screen.queryByText(HINT)).not.toBeInTheDocument()
+  })
+})
+
+describe('editing a task', () => {
+  it('opens with the current values and saves the changes', async () => {
+    const list = vi
+      .spyOn(tasksApi, 'listForProject')
+      .mockResolvedValueOnce([task()])
+      .mockResolvedValue([
+        task({ title: 'Read the paper carefully', priority: 'High', deadline: '2999-12-31T00:00:00' }),
+      ])
+    const update = vi.spyOn(tasksApi, 'update').mockResolvedValue(task())
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openEditTask(user))
+
+    expect(dialog.getByLabelText('Title')).toHaveValue(NAME)
+    expect(dialog.getByLabelText('Description')).toHaveValue('Summarise section 3')
+    expect(dialog.getByLabelText('Priority')).toHaveValue('Medium')
+    expect(dialog.getByLabelText('Deadline')).toHaveValue('')
+    // The linked paper and the assignee are not part of this form.
+    expect(dialog.queryByLabelText('Linked paper')).not.toBeInTheDocument()
+    expect(dialog.queryByLabelText('Assignee')).not.toBeInTheDocument()
+
+    const title = dialog.getByLabelText('Title')
+    await user.clear(title)
+    await user.type(title, '  Read the paper carefully ')
+    await user.selectOptions(dialog.getByLabelText('Priority'), 'High')
+    await user.type(dialog.getByLabelText('Deadline'), '2999-12-31')
+    await user.click(dialog.getByRole('button', { name: 'Save changes' }))
+
+    expect(await screen.findByRole('article', { name: 'Read the paper carefully' })).toBeInTheDocument()
+    expect(update).toHaveBeenCalledWith('t1', {
+      title: 'Read the paper carefully',
+      description: 'Summarise section 3',
+      priority: 'High',
+      deadline: '2999-12-31',
+    })
+    expect(list).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(screen.queryByLabelText('Title')).not.toBeInTheDocument())
+  })
+
+  it('shows the current deadline as the date written, and lets it be cleared', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([task({ deadline: '2999-12-31T00:00:00' })])
+    const update = vi.spyOn(tasksApi, 'update').mockResolvedValue(task())
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openEditTask(user))
+
+    const deadline = dialog.getByLabelText('Deadline')
+    expect(deadline).toHaveValue('2999-12-31')
+
+    fireEvent.change(deadline, { target: { value: '' } })
+    await user.click(dialog.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
+    expect(update).toHaveBeenCalledWith('t1', expect.objectContaining({ deadline: null }))
+  })
+
+  it('sends nothing when nothing changed', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([task({ deadline: '2999-12-31T00:00:00' })])
+    const update = vi.spyOn(tasksApi, 'update')
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openEditTask(user))
+
+    await user.click(dialog.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => expect(screen.queryByLabelText('Title')).not.toBeInTheDocument())
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('shows the API error under the right input and keeps what was typed', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([task()])
+    vi.spyOn(tasksApi, 'update').mockRejectedValue(
+      new ApiError(
+        400,
+        { title: 'Validation failed', status: 400, errors: { title: ["'Title' must not be empty."] } },
+        'Validation failed',
+      ),
+    )
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openEditTask(user))
+
+    await user.clear(dialog.getByLabelText('Title'))
+    await user.click(dialog.getByRole('button', { name: 'Save changes' }))
+
+    expect(await dialog.findByText("'Title' must not be empty.")).toBeInTheDocument()
+    expect(dialog.getByLabelText('Title')).toHaveAttribute('aria-invalid', 'true')
+    expect(dialog.getByLabelText('Description')).toHaveValue('Summarise section 3')
+  })
+
+  it('discards the draft when cancelled', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([task()])
+    const update = vi.spyOn(tasksApi, 'update')
+    const user = userEvent.setup()
+
+    renderTab()
+    let dialog = within(await openEditTask(user))
+
+    await user.type(dialog.getByLabelText('Title'), ' (draft)')
+    await user.click(dialog.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByLabelText('Title')).not.toBeInTheDocument())
+
+    dialog = within(await openEditTask(user))
+    expect(dialog.getByLabelText('Title')).toHaveValue(NAME)
+    expect(update).not.toHaveBeenCalled()
+  })
+})
+
+describe('assigning a task', () => {
+  it('assigns the task to a member and shows the new assignee', async () => {
+    const list = vi
+      .spyOn(tasksApi, 'listForProject')
+      .mockResolvedValueOnce([task()])
+      .mockResolvedValue([task({ assignedToUserId: 'u2', assignedToName: 'Sam' })])
+    const assign = vi.spyOn(tasksApi, 'assign').mockResolvedValue(task())
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openAssign(user))
+
+    const select = dialog.getByLabelText('Assignee')
+    expect(select).toHaveValue('')
+    expect(dialog.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Unassigned',
+      'Ana (you)',
+      'Sam',
+    ])
+
+    await user.selectOptions(select, 'Sam')
+    await user.click(dialog.getByRole('button', { name: 'Save assignee' }))
+
+    expect(await screen.findByText('Assigned to Sam')).toBeInTheDocument()
+    expect(assign).toHaveBeenCalledWith('t1', 'u2')
+    expect(list).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(screen.queryByLabelText('Assignee')).not.toBeInTheDocument())
+  })
+
+  it('clears the assignee', async () => {
+    vi.spyOn(tasksApi, 'listForProject')
+      .mockResolvedValueOnce([task({ assignedToUserId: 'u2', assignedToName: 'Sam' })])
+      .mockResolvedValue([task()])
+    const assign = vi.spyOn(tasksApi, 'assign').mockResolvedValue(task())
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openAssign(user))
+
+    expect(dialog.getByLabelText('Assignee')).toHaveValue('u2')
+    await user.selectOptions(dialog.getByLabelText('Assignee'), 'Unassigned')
+    await user.click(dialog.getByRole('button', { name: 'Save assignee' }))
+
+    await waitFor(() => expect(screen.queryByLabelText('Assignee')).not.toBeInTheDocument())
+    expect(assign).toHaveBeenCalledWith('t1', null)
+    expect(screen.getByText('Unassigned')).toBeInTheDocument()
+  })
+
+  it('sends nothing when the assignee did not change', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([
+      task({ assignedToUserId: 'u2', assignedToName: 'Sam' }),
+    ])
+    const assign = vi.spyOn(tasksApi, 'assign')
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openAssign(user))
+
+    await user.click(dialog.getByRole('button', { name: 'Save assignee' }))
+
+    await waitFor(() => expect(screen.queryByLabelText('Assignee')).not.toBeInTheDocument())
+    expect(assign).not.toHaveBeenCalled()
+  })
+
+  it('keeps a former member selectable as the current assignee, and sends nothing if left as is', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([
+      task({ assignedToUserId: 'u9', assignedToName: 'Zed' }),
+    ])
+    const assign = vi.spyOn(tasksApi, 'assign')
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openAssign(user))
+
+    expect(dialog.getByLabelText('Assignee')).toHaveValue('u9')
+    expect(dialog.getByRole('option', { name: 'Zed (no longer a member)' })).toBeInTheDocument()
+
+    await user.click(dialog.getByRole('button', { name: 'Save assignee' }))
+
+    await waitFor(() => expect(screen.queryByLabelText('Assignee')).not.toBeInTheDocument())
+    expect(assign).not.toHaveBeenCalled()
+  })
+
+  it('shows the API message and keeps the dialog open when the assignment is refused', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([task()])
+    vi.spyOn(tasksApi, 'assign').mockRejectedValue(
+      new ApiError(
+        400,
+        { title: 'Bad Request', status: 400, detail: 'The assignee must be a member of this project.' },
+        'The assignee must be a member of this project.',
+      ),
+    )
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openAssign(user))
+
+    await user.selectOptions(dialog.getByLabelText('Assignee'), 'Sam')
+    await user.click(dialog.getByRole('button', { name: 'Save assignee' }))
+
+    expect(await dialog.findByRole('alert')).toHaveTextContent('The assignee must be a member of this project.')
+    expect(dialog.getByLabelText('Assignee')).toHaveValue('u2')
+  })
+})
+
+describe('deleting a task', () => {
+  it('asks for confirmation, then deletes and refreshes the list', async () => {
+    const list = vi.spyOn(tasksApi, 'listForProject').mockResolvedValueOnce([task()]).mockResolvedValue([])
+    const remove = vi.spyOn(tasksApi, 'remove').mockResolvedValue(undefined)
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openDeleteTask(user))
+
+    expect(dialog.getByText(NAME)).toBeInTheDocument()
+    expect(remove).not.toHaveBeenCalled()
+
+    await user.click(dialog.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(await screen.findByText('No tasks yet')).toBeInTheDocument()
+    expect(remove).toHaveBeenCalledWith('t1')
+    expect(list).toHaveBeenCalledTimes(2)
+  })
+
+  it('does nothing when cancelled', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([task()])
+    const remove = vi.spyOn(tasksApi, 'remove')
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openDeleteTask(user))
+    await user.click(dialog.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Delete this task?' })).not.toBeInTheDocument(),
+    )
+    expect(remove).not.toHaveBeenCalled()
+    expect(screen.getByRole('article', { name: NAME })).toBeInTheDocument()
+  })
+
+  it('treats a task that is already gone as deleted, without an error', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValueOnce([task()]).mockResolvedValue([])
+    vi.spyOn(tasksApi, 'remove').mockRejectedValue(
+      new ApiError(404, { title: 'Not Found', status: 404 }, 'Task not found.'),
+    )
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openDeleteTask(user))
+    await user.click(dialog.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(await screen.findByText('No tasks yet')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('shows why it failed and keeps the task', async () => {
+    vi.spyOn(tasksApi, 'listForProject').mockResolvedValue([task()])
+    vi.spyOn(tasksApi, 'remove').mockRejectedValue(new ApiError(500, null, 'Request failed (500)'))
+    const user = userEvent.setup()
+
+    renderTab()
+    const dialog = within(await openDeleteTask(user))
+    await user.click(dialog.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Request failed (500)')
+    expect(screen.getByRole('article', { name: NAME })).toBeInTheDocument()
   })
 })

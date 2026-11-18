@@ -4,6 +4,7 @@ import type {
   ResearchTask,
   ResearchTaskStatus,
   TaskPriority,
+  UpdateResearchTaskRequest,
 } from './types'
 
 export const taskKeys = {
@@ -27,22 +28,25 @@ function checkTask(task: ResearchTask): ResearchTask {
   )
 }
 
+const projectTasksPath = (projectId: string) => `/api/projects/${encodeURIComponent(projectId)}/tasks`
+const taskPath = (id: string) => `/api/tasks/${encodeURIComponent(id)}`
+
 export const tasksApi = {
   listForProject: async (projectId: string) => {
-    const tasks = await request<ResearchTask[]>(`/api/projects/${encodeURIComponent(projectId)}/tasks`)
+    const tasks = await request<ResearchTask[]>(projectTasksPath(projectId))
 
     if (!Array.isArray(tasks)) throw new ContractError('The server did not send a list of tasks.')
 
     return tasks.map(checkTask)
   },
   create: (projectId: string, body: CreateResearchTaskRequest) =>
-    request<ResearchTask>(`/api/projects/${encodeURIComponent(projectId)}/tasks`, {
-      method: 'POST',
-      body,
-    }),
+    request<ResearchTask>(projectTasksPath(projectId), { method: 'POST', body }),
+  update: (id: string, body: UpdateResearchTaskRequest) =>
+    request<ResearchTask>(taskPath(id), { method: 'PUT', body }),
+  /** A null user id clears the assignee. */
+  assign: (id: string, userId: string | null) =>
+    request<ResearchTask>(`${taskPath(id)}/assignee`, { method: 'PUT', body: { userId } }),
   changeStatus: (id: string, status: ResearchTaskStatus) =>
-    request<ResearchTask>(`/api/tasks/${encodeURIComponent(id)}/status`, {
-      method: 'PATCH',
-      body: { status },
-    }),
+    request<ResearchTask>(`${taskPath(id)}/status`, { method: 'PATCH', body: { status } }),
+  remove: (id: string) => request<void>(taskPath(id), { method: 'DELETE' }),
 }

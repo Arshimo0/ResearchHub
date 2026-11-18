@@ -61,3 +61,8 @@ export const statusMoves: Record<ResearchTaskStatus, { label: string; to: Resear
   ],
   Done: [{ label: 'Reopen', to: 'InProgress' }],
 }
+
+/** Who may edit, assign or delete a task: its creator or a project owner. The API enforces this. */
+export function canManageTask(task: ResearchTask, userId: string | undefined, isOwner: boolean): boolean {
+  return isOwner || (userId !== undefined && task.createdByUserId === userId)
+}

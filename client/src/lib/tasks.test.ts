@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ResearchTask } from '../api/types'
-import { canChangeStatus, groupByStatus, isOverdue } from './tasks'
+import { canChangeStatus, canManageTask, groupByStatus, isOverdue } from './tasks'
 
 // Months in `new Date(...)` count from 0, so 9 means October. These are local dates.
 const oct21Noon = new Date(2026, 9, 21, 12, 0)
@@ -74,5 +74,23 @@ describe('canChangeStatus', () => {
     expect(canChangeStatus(assigned, 'u3', false)).toBe(false)
     expect(canChangeStatus(unassigned, 'u2', false)).toBe(false)
     expect(canChangeStatus(assigned, undefined, false)).toBe(false)
+  })
+})
+
+describe('canManageTask', () => {
+  const madeByAna: ResearchTask = { ...task('a', 'ToDo'), createdByUserId: 'u1', assignedToUserId: 'u2' }
+
+  it('lets an owner manage any task', () => {
+    expect(canManageTask(madeByAna, 'u9', true)).toBe(true)
+  })
+
+  it('lets the creator manage their own task', () => {
+    expect(canManageTask(madeByAna, 'u1', false)).toBe(true)
+  })
+
+  it('does not let anyone else manage a task, not even its assignee', () => {
+    expect(canManageTask(madeByAna, 'u2', false)).toBe(false)
+    expect(canManageTask(madeByAna, 'u3', false)).toBe(false)
+    expect(canManageTask(madeByAna, undefined, false)).toBe(false)
   })
 })
