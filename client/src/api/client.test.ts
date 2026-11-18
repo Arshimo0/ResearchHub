@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { tokenStore } from '../auth/tokenStore'
-import { ApiError, errorMessage, request } from './client'
+import { ApiError, ContractError, errorMessage, request } from './client'
 import type { AuthResult } from './types'
 
 const fetchMock = vi.fn()
@@ -260,5 +260,11 @@ describe('errorMessage', () => {
 
   it('does not reveal the details of anything that is not an ApiError', () => {
     expect(errorMessage(new Error('secret internals'))).toBe('Something went wrong. Please try again.')
+  })
+  
+  it('shows the message of a ContractError, since the app wrote it', () => {
+    expect(errorMessage(new ContractError('The server sent something odd.'))).toBe(
+      'The server sent something odd.',
+    )
   })
 })

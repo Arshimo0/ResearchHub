@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
-import { ApiError } from './client'
+import { ApiError, ContractError } from './client'
 
 export function createQueryClient() {
   return new QueryClient({
@@ -7,6 +7,8 @@ export function createQueryClient() {
       queries: {
         staleTime: 30_000,
         retry: (failureCount, error) => {
+          // Data we cannot understand will not fix itself.
+          if (error instanceof ContractError) return false
           // 400, 401, 403, 404 and 409 will not fix themselves, so do not retry them.
           // A dropped connection or a 5xx might, so try a couple of times.
           if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false

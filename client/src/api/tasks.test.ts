@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ContractError } from './client'
 import { tasksApi } from './tasks'
 
 describe('tasksApi', () => {
@@ -14,6 +15,7 @@ describe('tasksApi', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('lists the tasks of a project', async () => {
@@ -53,5 +55,64 @@ describe('tasksApi', () => {
     expect(String(url)).toBe('http://api.test/api/tasks/t1/status')
     expect(init.method).toBe('PATCH')
     expect(init.body).toBe(JSON.stringify({ status: 'Done' }))
+  })
+
+    const respondWith = (body: unknown) =>
+    fetchMock.mockImplementationOnce(
+      async () =>
+        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+
+  const goodTask = {
+    id: 't1',
+    projectId: 'p1',
+    paperId: null,
+    title: 'Read the paper',
+    description: '',
+    status: 'ToDo',
+    priority: 'Medium',
+    deadline: null,
+    assignedToUserId: null,
+    assignedToName: null,
+    createdByUserId: 'u1',
+    createdByName: 'Ana',
+    createdAt: '2026-10-01T10:00:00Z',
+    completedAt: null,
+  }
+
+  it('passes valid tasks through unchanged', async () => {
+    respondWith([goodTask])
+
+    await expect(tasksApi.listForProject('p1')).resolves.toEqual([goodTask])
+  })
+
+  it.each<[unknown, string]>([
+    ['Todo', 'status: "Todo"'],
+    [0, 'status: 0'],
+    [undefined, 'status: undefined'],
+  ])('rejects a task with status %j, saying what the server sent', async (status, shown) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    respondWith([{ ...goodTask, status }])
+
+    const failure = tasksApi.listForProject('p1')
+
+    await expect(failure).rejects.toBeInstanceOf(ContractError)
+    await expect(failure).rejects.toThrow(shown)
+  })
+
+  it('rejects a task with a priority the app does not know', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    respondWith([{ ...goodTask, priority: 'Urgent' }])
+
+    await expect(tasksApi.listForProject('p1')).rejects.toThrow('priority: "Urgent"')
+  })
+
+  it('rejects a response that is not a list', async () => {
+    respondWith({ message: 'nope' })
+
+    const failure = tasksApi.listForProject('p1')
+
+    await expect(failure).rejects.toBeInstanceOf(ContractError)
+    await expect(failure).rejects.toThrow('did not send a list of tasks')
   })
 })

@@ -1,4 +1,5 @@
-import { Link, Outlet, useNavigate } from 'react-router'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router'
+import { ErrorBoundary } from './ErrorBoundary'
 import { useAuth } from '../auth/useAuth'
 import { Button } from './Button'
 import { SearchBox } from './SearchBox'
@@ -6,6 +7,7 @@ import { SearchBox } from './SearchBox'
 export function AppShell() {
   const { status, user, logout } = useAuth()
   const navigate = useNavigate()
+  const { pathname, search } = useLocation()
 
   function handleLogout() {
     logout()
@@ -45,7 +47,9 @@ export function AppShell() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-        <Outlet />
+        <ErrorBoundary resetKey={`${pathname}${search}`}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   )

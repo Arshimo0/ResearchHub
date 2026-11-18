@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ApiError } from './client'
+import { ApiError, ContractError } from './client'
 import { createQueryClient } from './queryClient'
 
 type RetryFn = (failureCount: number, error: Error) => boolean
@@ -22,5 +22,9 @@ describe('query retry policy', () => {
 
   it('retries when the server cannot be reached', () => {
     expect(retry(0, failure(0))).toBe(true)
+  })
+
+  it('does not retry data the app cannot understand', () => {
+    expect(retry(0, new ContractError('odd'))).toBe(false)
   })
 })
