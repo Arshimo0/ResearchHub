@@ -6,6 +6,7 @@ export const paperKeys = {
   all: ['papers'] as const,
   list: (projectId: string, filter: PaperFilter = {}) =>
     [...paperKeys.all, 'list', projectId, filter] as const,
+  detail: (id: string) => [...paperKeys.all, 'detail', id] as const,
   search: (query: string) => [...paperKeys.all, 'search', query] as const,
 }
 
@@ -18,6 +19,7 @@ export const papersApi = {
       `/api/projects/${encodeURIComponent(projectId)}/papers${query ? `?${query}` : ''}`,
     )
   },
+  get: (id: string) => request<Paper>(paperPath(id)),
   search: (query: string) => request<Paper[]>(`/api/papers/search?query=${encodeURIComponent(query)}`),
   create: (projectId: string, body: CreatePaperRequest) =>
     request<Paper>(`/api/projects/${encodeURIComponent(projectId)}/papers`, { method: 'POST', body }),

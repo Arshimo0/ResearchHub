@@ -23,6 +23,8 @@ export class ApiError extends Error {
   }
 }
 
+/** The server answered successfully, but with data this app does not understand. */
+export class ContractError extends Error {}
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
@@ -111,6 +113,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
 /** A message safe to show a user for any error, preferring the first specific field message. */
 export function errorMessage(error: unknown): string {
+  // A ContractError message is written by this app, so it is safe to show.
+  if (error instanceof ContractError) return error.message
   if (!(error instanceof ApiError)) return 'Something went wrong. Please try again.'
 
   const firstFieldMessage = Object.values(error.fieldErrors).flat()[0]

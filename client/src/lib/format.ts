@@ -19,11 +19,13 @@ export function formatDate(iso: string): string {
     : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-/** Formats a calendar date (such as a publication date), which must not shift with the viewer's time zone. */
-export function formatPublicationDate(iso: string): string {
+/** Formats a calendar date (a publication date or a deadline), which must not shift with the viewer's time zone. */
+export function formatCalendarDate(iso: string): string {
   const date = parseApiDate(iso)
 
   return Number.isNaN(date.getTime())
     ? ''
     : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' })
 }
+
+export const formatPublicationDate = formatCalendarDate

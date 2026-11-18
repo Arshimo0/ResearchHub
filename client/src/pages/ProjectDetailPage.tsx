@@ -56,6 +56,7 @@ function ProjectDetail({ project, currentUserId }: { project: Project; currentUs
           label="Project sections"
           tabs={[
             { to: `/projects/${project.id}`, label: 'Papers', end: true },
+            { to: `/projects/${project.id}/tasks`, label: 'Tasks' },
             { to: `/projects/${project.id}/members`, label: 'Members' },
           ]}
         />

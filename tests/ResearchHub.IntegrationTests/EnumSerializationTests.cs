@@ -59,7 +59,7 @@ public class EnumSerializationTests : IClassFixture<CustomWebApplicationFactory>
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("\"priority\":\"High\"", body);
-        Assert.Contains("\"status\":\"Todo\"", body);
+        Assert.Contains("\"status\":\"ToDo\"", body);
     }
 
     [Fact]

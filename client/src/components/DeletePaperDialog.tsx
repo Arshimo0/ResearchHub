@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ApiError, errorMessage } from '../api/client'
 import { paperKeys, papersApi } from '../api/papers'
+import { taskKeys } from '../api/tasks'
 import type { Paper } from '../api/types'
 import { Button } from './Button'
 import { FormError } from './FormError'
@@ -11,9 +12,16 @@ function DeletePaperContent({ paper, onClose }: { paper: Paper; onClose: () => v
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
 
+  // Tasks linked to this paper lose their link when it is deleted, so cached task lists are stale too.
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: paperKeys.all }),
+      queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+    ])
+
   const remove = useMutation({
     mutationFn: () => papersApi.remove(paper.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: paperKeys.all }),
+    onSuccess: refresh,
   })
 
   async function handleDelete() {
@@ -25,7 +33,7 @@ function DeletePaperContent({ paper, onClose }: { paper: Paper; onClose: () => v
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
         // Someone else already deleted it, which is the result we wanted.
-        await queryClient.invalidateQueries({ queryKey: paperKeys.all })
+        await refresh()
         onClose()
         return
       }

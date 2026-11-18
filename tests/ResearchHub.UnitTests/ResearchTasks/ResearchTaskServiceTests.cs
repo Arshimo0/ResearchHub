@@ -72,7 +72,7 @@ public class ResearchTaskServiceTests
 
         Assert.Equal("Read paper", result.Title);
         Assert.Equal(memberId, result.CreatedByUserId);
-        Assert.Equal(ResearchTaskStatus.Todo, result.Status);
+        Assert.Equal(ResearchTaskStatus.ToDo, result.Status);
         _taskRepository.Verify(r => r.AddAsync(It.IsAny<ResearchTask>()), Times.Once);
     }
 

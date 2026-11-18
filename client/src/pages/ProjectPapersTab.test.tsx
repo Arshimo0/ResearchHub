@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import { papersApi } from '../api/papers'
 import type { Paper, Project } from '../api/types'
+import { taskKeys } from '../api/tasks'
 import { renderWithProviders } from '../test/renderWithProviders'
 import type { ProjectContext } from './projectContext'
 import { ProjectPapersTab } from './ProjectPapersTab'
@@ -133,8 +134,18 @@ describe('ProjectPapersTab', () => {
     renderTab()
 
     const card = within(await screen.findByRole('article', { name: 'Hostile entry' }))
-    expect(card.queryByRole('link')).not.toBeInTheDocument()
+    expect(card.queryByRole('link', { name: /Open source/ })).not.toBeInTheDocument()
     expect(card.getByText('javascript:alert(1)')).toBeInTheDocument()
+  })
+  it('links each paper title to its detail page', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValue([paper()])
+
+    renderTab()
+
+    expect(await screen.findByRole('link', { name: 'Attention Is All You Need' })).toHaveAttribute(
+      'href',
+      '/papers/pa1',
+    )
   })
 })
 
@@ -453,6 +464,22 @@ describe('deleting a paper', () => {
 
     expect(await dialog.findByRole('alert')).toHaveTextContent('Request failed (500)')
     expect(screen.getByRole('article', { name: TITLE })).toBeInTheDocument()
+  })
+
+  it('marks cached task lists stale, because tasks linked to the paper lose their link', async () => {
+    vi.spyOn(papersApi, 'listForProject').mockResolvedValueOnce([paper()]).mockResolvedValue([])
+    vi.spyOn(papersApi, 'remove').mockResolvedValue(undefined)
+    const user = userEvent.setup()
+
+    const { queryClient } = renderTab()
+    queryClient.setQueryData(taskKeys.list('p1'), [])
+    expect(queryClient.getQueryState(taskKeys.list('p1'))?.isInvalidated).toBe(false)
+
+    const dialog = within(await openDeleteDialog(user))
+    await user.click(dialog.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(await screen.findByText('No papers yet')).toBeInTheDocument()
+    expect(queryClient.getQueryState(taskKeys.list('p1'))?.isInvalidated).toBe(true)
   })
 })
 

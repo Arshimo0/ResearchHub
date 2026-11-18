@@ -307,4 +307,15 @@ describe('project tabs', () => {
 
     expect(await screen.findByRole('heading', { name: 'Members (2)' })).toBeInTheDocument()
   })
+
+  it('offers a Tasks tab between Papers and Members', async () => {
+    vi.spyOn(projectsApi, 'get').mockResolvedValue(project())
+
+    renderPage()
+    await screen.findByRole('heading', { name: 'AI Research' })
+
+    const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }))
+    expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Papers', 'Tasks', 'Members'])
+    expect(tabs.getByRole('link', { name: 'Tasks' })).toHaveAttribute('href', '/projects/p1/tasks')
+  })
 })
