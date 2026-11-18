@@ -32,7 +32,7 @@ namespace ResearchHub.Domain.Entities
             PaperId = paperId;
             Title = title.Trim();
             Description = description?.Trim() ?? string.Empty;
-            Status = ResearchTaskStatus.Todo;
+            Status = ResearchTaskStatus.ToDo;
             Priority = priority;
             Deadline = deadline;
             CreatedByUserId = createdByUserId;

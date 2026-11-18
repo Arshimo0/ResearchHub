@@ -18,7 +18,7 @@ namespace ResearchHub.UnitTests.Entities
         {
             var task = CreateTask();
 
-            Assert.Equal(ResearchTaskStatus.Todo, task.Status);
+            Assert.Equal(ResearchTaskStatus.ToDo, task.Status);
             Assert.Null(task.AssignedToUserId);
             Assert.Null(task.CompletedAt);
         }

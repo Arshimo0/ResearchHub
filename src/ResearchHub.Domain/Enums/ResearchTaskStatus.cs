@@ -2,7 +2,7 @@ namespace ResearchHub.Domain.Enums
 {
     public enum ResearchTaskStatus
     {
-        Todo,
+        ToDo,
         InProgress,
         Done
     }
